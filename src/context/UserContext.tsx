@@ -2,6 +2,20 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  type User,
+} from "firebase/auth";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 export interface Usernames {
   linkedin: string;
@@ -16,7 +30,6 @@ export type AccentColorType = "zinc" | "violet" | "emerald" | "blue" | "rose" | 
 export type ThemeModeType = "dark" | "light";
 
 export interface UserAccountData {
-  password?: string;
   usernames?: Usernames;
   masterAvatar?: string | null;
   accentColor?: AccentColorType;
@@ -58,41 +71,68 @@ const ACCENT_COLORS = {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
+/** Fetch a user's profile document from Firestore */
+async function fetchUserData(uid: string): Promise<UserAccountData | null> {
+  const snap = await getDoc(doc(db, "users", uid));
+  if (snap.exists()) {
+    return snap.data() as UserAccountData;
+  }
+  return null;
+}
+
+/** Write initial profile document when a new user signs up */
+async function createUserDocument(uid: string, data: UserAccountData): Promise<void> {
+  await setDoc(doc(db, "users", uid), data);
+}
+
+/** Partially update a user's profile document in Firestore */
+async function patchUserDocument(uid: string, data: Partial<UserAccountData>): Promise<void> {
+  await updateDoc(doc(db, "users", uid), data as Record<string, unknown>);
+}
+
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [usernames, setUsernames] = useState<Usernames>(defaultUsernames);
-  const [masterAvatar, setMasterAvatar] = useState<string | null>(null);
+  const [masterAvatar, setMasterAvatarState] = useState<string | null>(null);
   const [accentColor, setAccentColorState] = useState<AccentColorType>("blue");
   const [themeMode, setThemeModeState] = useState<ThemeModeType>("dark");
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // ─── Session listener ────────────────────────────────────────────────────────
+  // onAuthStateChanged fires automatically:
+  //   • on page load (restores session from Firebase's own persistence)
+  //   • after sign-in / sign-up
+  //   • after sign-out
+  // This replaces ALL the localStorage session-restore logic.
   useEffect(() => {
-    // Initial load of active session from localStorage
-    const activeEmail = localStorage.getItem("profilesync_active_email");
-    if (activeEmail) {
-      const accountsJson = localStorage.getItem("profilesync_accounts");
-      if (accountsJson) {
-        try {
-          const accounts = JSON.parse(accountsJson);
-          const userData = accounts[activeEmail];
-          if (userData) {
-            setIsAuthenticated(true);
-            setEmail(activeEmail);
-            setUsernames({ ...defaultUsernames, ...userData.usernames });
-            setMasterAvatar(userData.masterAvatar || null);
-            setAccentColorState(userData.accentColor || "blue");
-            setThemeModeState(userData.themeMode || "dark");
-          }
-        } catch (e) {
-          console.error("Failed to parse accounts on load:", e);
-        }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userData = await fetchUserData(user.uid);
+        setFirebaseUser(user);
+        setIsAuthenticated(true);
+        setEmail(user.email);
+        setUsernames({ ...defaultUsernames, ...userData?.usernames });
+        setMasterAvatarState(userData?.masterAvatar ?? null);
+        setAccentColorState(userData?.accentColor ?? "blue");
+        setThemeModeState(userData?.themeMode ?? "dark");
+      } else {
+        setFirebaseUser(null);
+        setIsAuthenticated(false);
+        setEmail(null);
+        setUsernames(defaultUsernames);
+        setMasterAvatarState(null);
+        setAccentColorState("blue");
+        setThemeModeState("dark");
       }
-    }
-    setIsLoaded(true);
+      setIsLoaded(true);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // Sync theme changes to DOM
+  // ─── Sync theme to DOM ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!isLoaded) return;
     const root = document.documentElement;
@@ -103,7 +143,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, [themeMode, isLoaded]);
 
-  // Sync accent color changes to DOM CSS Variables
+  // ─── Sync accent color to DOM CSS Variables ──────────────────────────────────
   useEffect(() => {
     if (!isLoaded) return;
     const root = document.documentElement;
@@ -112,197 +152,118 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty("--accent-glow", colors.glow);
   }, [accentColor, isLoaded]);
 
-  // Save current user data helper
-  const saveUserData = (
-    currentEmail: string,
-    updates: {
-      usernames?: Usernames;
-      masterAvatar?: string | null;
-      accentColor?: AccentColorType;
-      themeMode?: ThemeModeType;
-    }
-  ) => {
-    const accountsJson = localStorage.getItem("profilesync_accounts");
-    let accounts: Record<string, UserAccountData> = {};
-    if (accountsJson) {
-      try {
-        accounts = JSON.parse(accountsJson);
-      } catch (e) {
-        console.error("Error parsing accounts in saveUserData", e);
-      }
-    }
+  // ─── Auth actions ────────────────────────────────────────────────────────────
 
-    if (accounts[currentEmail]) {
-      accounts[currentEmail] = {
-        ...accounts[currentEmail],
-        usernames: updates.usernames !== undefined ? updates.usernames : accounts[currentEmail].usernames,
-        masterAvatar: updates.masterAvatar !== undefined ? updates.masterAvatar : accounts[currentEmail].masterAvatar,
-        accentColor: updates.accentColor !== undefined ? updates.accentColor : accounts[currentEmail].accentColor,
-        themeMode: updates.themeMode !== undefined ? updates.themeMode : accounts[currentEmail].themeMode,
+  const login = async (loginEmail: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await signInWithEmailAndPassword(auth, loginEmail.trim(), pass);
+      // onAuthStateChanged will handle loading the user data automatically
+      return { success: true };
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
+        return { success: false, error: "Account with this email does not exist. Please sign up." };
+      }
+      if (code === "auth/wrong-password") {
+        return { success: false, error: "Incorrect password. Please try again." };
+      }
+      if (code === "auth/too-many-requests") {
+        return { success: false, error: "Too many failed attempts. Please wait a moment and try again." };
+      }
+      return { success: false, error: "Failed to sign in. Please check your credentials." };
+    }
+  };
+
+  const signup = async (signupEmail: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, signupEmail.trim(), pass);
+
+      // Create the user's Firestore profile document with default values
+      const initialData: UserAccountData = {
+        usernames: defaultUsernames,
+        masterAvatar: null,
+        accentColor: "blue",
+        themeMode: "dark",
       };
-      localStorage.setItem("profilesync_accounts", JSON.stringify(accounts));
-    }
-  };
+      await createUserDocument(cred.user.uid, initialData);
 
-  const login = async (newEmail: string, pass: string): Promise<{ success: boolean; error?: string }> => {
-    const accountsJson = localStorage.getItem("profilesync_accounts");
-    let accounts: Record<string, UserAccountData> = {};
-    if (accountsJson) {
-      try {
-        accounts = JSON.parse(accountsJson);
-      } catch {
-        // Ignore
+      // onAuthStateChanged will pick up the new session automatically
+      return { success: true };
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === "auth/email-already-in-use") {
+        return { success: false, error: "An account with this email already exists." };
       }
-    }
-
-    const lowerEmail = newEmail.toLowerCase().trim();
-    const user = accounts[lowerEmail];
-    if (!user) {
-      return { success: false, error: "Account with this email does not exist. Please sign up." };
-    }
-
-    if (user.password !== pass) {
-      return { success: false, error: "Incorrect password. Please try again." };
-    }
-
-    // Capture temp upload if it exists
-    let activeAvatar = user.masterAvatar || null;
-    if (typeof window !== "undefined") {
-      const tempAvatar = sessionStorage.getItem("temp_upload_avatar");
-      if (tempAvatar) {
-        if (!user.masterAvatar) {
-          activeAvatar = tempAvatar;
-          user.masterAvatar = tempAvatar;
-          accounts[lowerEmail] = user;
-          localStorage.setItem("profilesync_accounts", JSON.stringify(accounts));
-        }
-        sessionStorage.removeItem("temp_upload_avatar");
+      if (code === "auth/weak-password") {
+        return { success: false, error: "Password must be at least 6 characters." };
       }
-    }
-
-    // Success! Load state
-    setIsAuthenticated(true);
-    setEmail(lowerEmail);
-    setUsernames({ ...defaultUsernames, ...user.usernames });
-    setMasterAvatar(activeAvatar);
-    setAccentColorState(user.accentColor || "blue");
-    setThemeModeState(user.themeMode || "dark");
-    localStorage.setItem("profilesync_active_email", lowerEmail);
-
-    return { success: true };
-  };
-
-  const signup = async (newEmail: string, pass: string): Promise<{ success: boolean; error?: string }> => {
-    const accountsJson = localStorage.getItem("profilesync_accounts");
-    let accounts: Record<string, UserAccountData> = {};
-    if (accountsJson) {
-      try {
-        accounts = JSON.parse(accountsJson);
-      } catch {
-        // Ignore
+      if (code === "auth/invalid-email") {
+        return { success: false, error: "Please enter a valid email address." };
       }
+      return { success: false, error: "Failed to create account. Please try again." };
     }
-
-    const lowerEmail = newEmail.toLowerCase().trim();
-    if (accounts[lowerEmail]) {
-      return { success: false, error: "An account with this email already exists." };
-    }
-
-    // Capture temp upload if it exists
-    let tempAvatar = null;
-    if (typeof window !== "undefined") {
-      tempAvatar = sessionStorage.getItem("temp_upload_avatar");
-      if (tempAvatar) {
-        sessionStorage.removeItem("temp_upload_avatar");
-      }
-    }
-
-    // Create user data
-    accounts[lowerEmail] = {
-      password: pass,
-      usernames: defaultUsernames,
-      masterAvatar: tempAvatar,
-      accentColor: "blue",
-      themeMode: "dark",
-    };
-
-    localStorage.setItem("profilesync_accounts", JSON.stringify(accounts));
-
-    // Sign in automatically
-    setIsAuthenticated(true);
-    setEmail(lowerEmail);
-    setUsernames(defaultUsernames);
-    setMasterAvatar(tempAvatar);
-    setAccentColorState("blue");
-    setThemeModeState("dark");
-    localStorage.setItem("profilesync_active_email", lowerEmail);
-
-    return { success: true };
   };
 
   const logout = () => {
-    setIsAuthenticated(false);
-    setEmail(null);
-    setUsernames(defaultUsernames);
-    setMasterAvatar(null);
-    setAccentColorState("blue");
-    setThemeModeState("dark");
-    localStorage.removeItem("profilesync_active_email");
+    signOut(auth);
+    // onAuthStateChanged handles resetting all state
   };
 
+  // ─── Data update actions ─────────────────────────────────────────────────────
+
   const updateUsernames = (newUsernames: Partial<Usernames>) => {
-    if (!email) return;
-    setUsernames(prev => {
+    if (!firebaseUser) return;
+    setUsernames((prev) => {
       const updated = { ...prev };
-      (Object.keys(newUsernames) as Array<keyof Usernames>).forEach(key => {
+      (Object.keys(newUsernames) as Array<keyof Usernames>).forEach((key) => {
         const val = newUsernames[key];
         if (val !== undefined) {
           updated[key] = val;
         }
       });
-      saveUserData(email, { usernames: updated });
+      patchUserDocument(firebaseUser.uid, { usernames: updated }).catch(console.error);
       return updated;
     });
   };
 
   const updateMasterAvatar = (base64: string | null) => {
-    if (!email) return;
-    setMasterAvatar(base64);
-    saveUserData(email, { masterAvatar: base64 });
+    if (!firebaseUser) return;
+    setMasterAvatarState(base64);
+    patchUserDocument(firebaseUser.uid, { masterAvatar: base64 }).catch(console.error);
   };
 
   const setAccentColor = (color: AccentColorType) => {
-    if (!email) return;
+    if (!firebaseUser) return;
     setAccentColorState(color);
-    saveUserData(email, { accentColor: color });
+    patchUserDocument(firebaseUser.uid, { accentColor: color }).catch(console.error);
   };
 
   const setThemeMode = (theme: ThemeModeType) => {
-    if (!email) return;
+    if (!firebaseUser) return;
     setThemeModeState(theme);
-    saveUserData(email, { themeMode: theme });
+    patchUserDocument(firebaseUser.uid, { themeMode: theme }).catch(console.error);
   };
 
-  // Don't render children until we've loaded from localStorage to prevent hydration mismatch
+  // Don't render children until Firebase has resolved the session
   if (!isLoaded) {
     return null;
   }
 
   return (
-    <UserContext.Provider value={{ 
-      isAuthenticated, 
-      email, 
-      usernames, 
-      masterAvatar, 
-      accentColor, 
-      themeMode, 
-      login, 
-      signup, 
-      logout, 
-      updateUsernames, 
+    <UserContext.Provider value={{
+      isAuthenticated,
+      email,
+      usernames,
+      masterAvatar,
+      accentColor,
+      themeMode,
+      login,
+      signup,
+      logout,
+      updateUsernames,
       updateMasterAvatar,
       setAccentColor,
-      setThemeMode
+      setThemeMode,
     }}>
       {children}
     </UserContext.Provider>

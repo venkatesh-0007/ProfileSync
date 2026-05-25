@@ -11,6 +11,17 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "ProfileSync | Update Your Professional Identity Everywhere",
   description: "ProfileSync helps users update their professional profile photo across multiple platforms from one dashboard.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/logo-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/logo-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

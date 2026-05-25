@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, MoveRight, Mail, Lock, ShieldAlert } from "lucide-react";
+import { MoveRight, Mail, Lock, ShieldAlert } from "lucide-react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
@@ -70,8 +71,8 @@ export default function SignInPage() {
         className="w-full max-w-md relative z-10"
       >
         <Link href="/" className="flex justify-center mb-10">
-          <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center shadow-lg shadow-black/50">
-            <ImageIcon className="w-6 h-6 text-zinc-100" />
+          <div className="w-14 h-14 rounded-xl bg-black border border-zinc-800 flex items-center justify-center shadow-lg shadow-black/50 overflow-hidden">
+            <Image src="/logo.png" alt="ProfileSync Logo" width={40} height={40} className="object-contain" priority />
           </div>
         </Link>
         

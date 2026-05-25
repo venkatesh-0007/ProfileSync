@@ -12,6 +12,7 @@ import {
   RefreshCw, Sparkles
 } from "lucide-react";
 import { GithubIcon as Github, LinkedinIcon as Linkedin } from "@/components/icons";
+import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -423,8 +424,8 @@ export default function DashboardPage() {
           {/* Left: Logo + tab pills */}
           <div className="flex items-center gap-6">
             <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-lg bg-secondary border border-zinc-200 dark:border-zinc-800 flex items-center justify-center">
-                <ImageIcon className="w-4 h-4 text-foreground" />
+              <div className="w-8 h-8 rounded-lg bg-black border border-zinc-200 dark:border-zinc-800 flex items-center justify-center overflow-hidden">
+                <NextImage src="/logo.png" alt="ProfileSync" width={24} height={24} className="object-contain" />
               </div>
               <span className="text-lg font-bold tracking-tight text-foreground hidden sm:block">ProfileSync</span>
             </div>
