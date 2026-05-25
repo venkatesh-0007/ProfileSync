@@ -70,9 +70,9 @@ export default function SignInPage() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md relative z-10"
       >
-        <Link href="/" className="flex justify-center mb-10">
-          <div className="w-14 h-14 rounded-xl bg-black border border-zinc-800 flex items-center justify-center shadow-lg shadow-black/50 overflow-hidden">
-            <Image src="/logo.png" alt="ProfileSync Logo" width={40} height={40} className="object-contain" priority />
+        <Link href="/" className="flex justify-center mb-8">
+          <div className="w-24 h-24 flex items-center justify-center">
+            <Image src="/logo.png" alt="ProfileSync Logo" width={96} height={96} className="object-contain drop-shadow-2xl" priority />
           </div>
         </Link>
         

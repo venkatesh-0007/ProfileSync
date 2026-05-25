@@ -422,19 +422,19 @@ export default function DashboardPage() {
         {/* Topbar */}
         <header className="flex justify-between items-center px-6 md:px-10 py-4 border-b border-zinc-200 dark:border-zinc-900 bg-card/50 backdrop-blur-md sticky top-0 z-30 transition-colors duration-300">
           {/* Left: Logo + tab pills */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-6">
             <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-lg bg-black border border-zinc-200 dark:border-zinc-800 flex items-center justify-center overflow-hidden">
-                <NextImage src="/logo.png" alt="ProfileSync" width={24} height={24} className="object-contain" />
+              <div className="w-10 h-10 flex items-center justify-center">
+                <NextImage src="/logo.png" alt="ProfileSync" width={40} height={40} className="object-contain drop-shadow-md" />
               </div>
-              <span className="text-lg font-bold tracking-tight text-foreground hidden sm:block">ProfileSync</span>
+              <span className="text-xl font-bold tracking-tight text-foreground hidden sm:block">ProfileSync</span>
             </div>
 
             {/* Tab Pills */}
-            <div className="flex items-center gap-1 bg-secondary rounded-xl p-1 border border-zinc-200 dark:border-zinc-800">
+            <div className="flex items-center gap-1 bg-secondary rounded-xl p-1 border border-zinc-200 dark:border-zinc-800 shrink-0">
               <button
                 onClick={() => setActiveTab("overview")}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                   activeTab === "overview"
                     ? "bg-card text-foreground shadow-sm border border-zinc-200 dark:border-zinc-800"
                     : "text-zinc-500 hover:text-foreground"
@@ -444,7 +444,7 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={() => setActiveTab("settings")}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                   activeTab === "settings"
                     ? "bg-card text-foreground shadow-sm border border-zinc-200 dark:border-zinc-800"
                     : "text-zinc-500 hover:text-foreground"
@@ -517,18 +517,18 @@ export default function DashboardPage() {
                 key={activeTab}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-4xl font-black tracking-tighter text-foreground"
+                className="text-3xl sm:text-4xl font-black tracking-tighter text-foreground"
               >
                 {activeTab === "overview" ? "Dashboard" : "Settings"}
               </motion.h1>
-              <p className="text-zinc-500 dark:text-zinc-400 font-medium">
+              <p className="text-zinc-500 dark:text-zinc-400 font-medium text-sm sm:text-base">
                 {activeTab === "overview"
                   ? "Manage and sync your professional identity."
                   : "Configure your account and preferences."}
               </p>
             </div>
             {activeTab === "overview" && (
-              <div className="flex flex-col items-end space-y-2 bg-card p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl min-w-[220px]">
+              <div className="flex flex-col items-end space-y-2 bg-card p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl min-w-[220px] w-full sm:w-auto">
                 <div className="flex justify-between w-full">
                   <span className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Sync Progress</span>
                   <span className="text-sm font-black text-foreground">{Math.round(progress)}%</span>
