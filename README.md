@@ -164,13 +164,6 @@ User uploads Master Avatar
                     └─── diff >  25% → ⚠️ Out of Sync
 ```
 
----
-
-## 📝 License
-
-This project is open-source under the [MIT License](LICENSE).
-
-<div align="center">
 
 <!-- Animated footer wave -->
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20,24,30&height=120&section=footer&animation=fadeIn" width="100%" />
