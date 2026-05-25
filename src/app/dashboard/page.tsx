@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Code, Terminal, Zap, 
   Settings, CheckCircle2,
-  Image as ImageIcon, ArrowLeft, ExternalLink,
+  Image as ImageIcon, ExternalLink,
   UserCircle, Moon, Sun, LogOut, Save,
   RefreshCw, Sparkles
 } from "lucide-react";
@@ -411,80 +411,54 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row font-sans text-foreground selection:bg-zinc-200 dark:selection:bg-zinc-800 transition-colors duration-300">
-      {/* Sidebar */}
-      <aside className="w-full md:w-72 border-r border-zinc-200 dark:border-zinc-900 bg-card flex flex-col z-10 sticky top-0 md:h-screen transition-colors duration-300">
-        <div className="flex items-center space-x-3 p-8 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-secondary border border-zinc-200 dark:border-zinc-800 flex items-center justify-center shadow-lg shadow-black/5 dark:shadow-black/50">
-            <ImageIcon className="w-5 h-5 text-foreground" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight text-foreground">ProfileSync</span>
-        </div>
-        
-        <div className="px-6 mb-6 flex-1">
-          <div className="text-xs font-bold text-zinc-450 dark:text-zinc-650 tracking-widest uppercase mb-4 px-2">Menu</div>
-          <nav className="space-y-2">
-            <Button 
-              variant="ghost" 
-              className={`w-full justify-start rounded-xl px-4 py-6 ${
-                activeTab === "overview" 
-                  ? "bg-accent-custom/10 text-accent-custom font-bold border border-accent-custom/20" 
-                  : "text-zinc-500 hover:text-foreground hover:bg-secondary/40"
-              }`}
-              onClick={() => setActiveTab("overview")}
-            >
-              <UserCircle className="mr-4 w-5 h-5" />
-              Overview
-            </Button>
-            <Button 
-              variant="ghost" 
-              className={`w-full justify-start rounded-xl px-4 py-6 ${
-                activeTab === "settings" 
-                  ? "bg-accent-custom/10 text-accent-custom font-bold border border-accent-custom/20" 
-                  : "text-zinc-500 hover:text-foreground hover:bg-secondary/40"
-              }`}
-              onClick={() => setActiveTab("settings")}
-            >
-              <Settings className="mr-4 w-5 h-5" />
-              Settings
-            </Button>
-          </nav>
-        </div>
-        
-        <div className="p-6 border-t border-zinc-200 dark:border-zinc-900">
-          <Button onClick={handleLogout} variant="ghost" className="w-full justify-start text-zinc-500 hover:text-red-400 py-6 rounded-xl hover:bg-red-500/10 mb-2">
-            <LogOut className="mr-4 w-5 h-5" />
-            Sign Out
-          </Button>
-          <Link href="/">
-            <Button variant="ghost" className="w-full justify-start text-zinc-500 hover:text-foreground py-6 rounded-xl hover:bg-secondary/40">
-              <ArrowLeft className="mr-4 w-5 h-5" />
-              Back to Home
-            </Button>
-          </Link>
-        </div>
-      </aside>
+    <div className="min-h-screen bg-background flex flex-col font-sans text-foreground selection:bg-zinc-200 dark:selection:bg-zinc-800 transition-colors duration-300">
 
-      {/* Main Content */}
+      {/* Main Content — full width */}
       <main className="flex-1 overflow-y-auto bg-background relative flex flex-col">
-        {/* Dynamic decorative glow */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-custom/5 rounded-full blur-[120px] pointer-events-none" />
-        
+        {/* Decorative glow */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-accent-custom/5 rounded-full blur-[140px] pointer-events-none" />
+
         {/* Topbar */}
-        <header className="flex justify-between items-center px-6 md:px-12 py-6 border-b border-zinc-200 dark:border-zinc-900 bg-card/50 backdrop-blur-md sticky top-0 z-30 transition-colors duration-300">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-semibold text-zinc-400">Workspace</span>
-            <span className="text-sm font-bold text-zinc-300">/</span>
-            <span className="text-sm font-bold text-foreground">
-              {activeTab === "overview" ? "Overview" : "Settings"}
-            </span>
+        <header className="flex justify-between items-center px-6 md:px-10 py-4 border-b border-zinc-200 dark:border-zinc-900 bg-card/50 backdrop-blur-md sticky top-0 z-30 transition-colors duration-300">
+          {/* Left: Logo + tab pills */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-lg bg-secondary border border-zinc-200 dark:border-zinc-800 flex items-center justify-center">
+                <ImageIcon className="w-4 h-4 text-foreground" />
+              </div>
+              <span className="text-lg font-bold tracking-tight text-foreground hidden sm:block">ProfileSync</span>
+            </div>
+
+            {/* Tab Pills */}
+            <div className="flex items-center gap-1 bg-secondary rounded-xl p-1 border border-zinc-200 dark:border-zinc-800">
+              <button
+                onClick={() => setActiveTab("overview")}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  activeTab === "overview"
+                    ? "bg-card text-foreground shadow-sm border border-zinc-200 dark:border-zinc-800"
+                    : "text-zinc-500 hover:text-foreground"
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab("settings")}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  activeTab === "settings"
+                    ? "bg-card text-foreground shadow-sm border border-zinc-200 dark:border-zinc-800"
+                    : "text-zinc-500 hover:text-foreground"
+                }`}
+              >
+                Settings
+              </button>
+            </div>
           </div>
 
-          {/* Account Profile Dropdown */}
+          {/* Right: Profile dropdown */}
           <div className="relative">
-            <button 
+            <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center space-x-3 p-1.5 rounded-full border border-zinc-200 dark:border-zinc-800 bg-card hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors focus:outline-none"
+              className="flex items-center space-x-2.5 p-1.5 pr-3 rounded-full border border-zinc-200 dark:border-zinc-800 bg-card hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors focus:outline-none"
             >
               <div className="w-8 h-8 rounded-full border border-zinc-300 dark:border-zinc-700 bg-secondary flex items-center justify-center overflow-hidden shrink-0">
                 {masterAvatar ? (
@@ -494,16 +468,16 @@ export default function DashboardPage() {
                   <UserCircle className="w-5 h-5 text-zinc-500" />
                 )}
               </div>
-              <span className="text-sm font-semibold pr-2 hidden sm:inline-block max-w-[120px] truncate text-foreground">
+              <span className="text-sm font-semibold hidden sm:inline-block max-w-[140px] truncate text-foreground">
                 {email?.split("@")[0]}
               </span>
             </button>
-            
+
             <AnimatePresence>
               {isDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -513,14 +487,14 @@ export default function DashboardPage() {
                       <p className="text-xxs text-zinc-400 font-bold uppercase tracking-wider">Account</p>
                       <p className="text-sm font-bold truncate text-foreground">{email}</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => { setActiveTab("settings"); setIsDropdownOpen(false); }}
                       className="w-full text-left px-2 py-2.5 rounded-xl text-sm font-semibold text-zinc-500 hover:text-foreground hover:bg-secondary/50 transition-colors flex items-center"
                     >
                       <Settings className="w-4 h-4 mr-2" />
                       Settings
                     </button>
-                    <button 
+                    <button
                       onClick={handleLogout}
                       className="w-full text-left px-2 py-2.5 rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-500/10 transition-colors flex items-center mt-1"
                     >
@@ -535,30 +509,30 @@ export default function DashboardPage() {
         </header>
 
         {/* Dashboard Panels */}
-        <div className="flex-1 p-6 md:p-12 space-y-12 relative z-10">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-zinc-200 dark:border-zinc-900 pb-10">
-            <div className="space-y-3">
-              <motion.h1 
+        <div className="flex-1 p-6 md:p-10 space-y-10 relative z-10 max-w-screen-2xl mx-auto w-full">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-200 dark:border-zinc-900 pb-8">
+            <div className="space-y-1">
+              <motion.h1
                 key={activeTab}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-5xl font-black tracking-tighter text-foreground"
+                className="text-4xl font-black tracking-tighter text-foreground"
               >
                 {activeTab === "overview" ? "Dashboard" : "Settings"}
               </motion.h1>
-              <p className="text-zinc-500 dark:text-zinc-400 text-lg font-medium">
-                {activeTab === "overview" 
+              <p className="text-zinc-500 dark:text-zinc-400 font-medium">
+                {activeTab === "overview"
                   ? "Manage and sync your professional identity."
                   : "Configure your account and preferences."}
               </p>
             </div>
             {activeTab === "overview" && (
-              <div className="flex flex-col items-end space-y-3 bg-card p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl min-w-[260px]">
-                <div className="flex justify-between w-full mb-1">
-                  <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Sync Progress</span>
+              <div className="flex flex-col items-end space-y-2 bg-card p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl min-w-[220px]">
+                <div className="flex justify-between w-full">
+                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Sync Progress</span>
                   <span className="text-sm font-black text-foreground">{Math.round(progress)}%</span>
                 </div>
-                <Progress value={progress} className="h-3 w-full bg-secondary [&>div]:bg-accent-custom" />
+                <Progress value={progress} className="h-2.5 w-full bg-secondary [&>div]:bg-accent-custom" />
               </div>
             )}
           </div>
@@ -571,10 +545,10 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="grid grid-cols-1 lg:grid-cols-4 gap-8"
+                className="grid grid-cols-1 xl:grid-cols-5 gap-8"
               >
                 {/* Left Side: Master Profile Column */}
-                <div className="lg:col-span-1 space-y-6">
+                <div className="xl:col-span-1 space-y-6">
                   <Card className="border-zinc-200 dark:border-zinc-800 shadow-2xl bg-card rounded-[2.5rem] overflow-hidden sticky top-28">
                     <CardHeader className="pb-6 pt-8 px-8">
                       <CardTitle className="text-2xl font-bold text-foreground">Master Profile</CardTitle>
@@ -643,7 +617,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Right Side: Grouped Socials and Coding Platforms */}
-                <div className="lg:col-span-3 space-y-12">
+                <div className="xl:col-span-4 space-y-10">
                   
                   {/* Social Networks Group */}
                   <div className="space-y-6">
