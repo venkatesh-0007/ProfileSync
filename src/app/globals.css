@@ -1,26 +1,102 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #f4f4f5; /* Zinc-100 */
+    --foreground: #09090b; /* Zinc-950 */
+    --card: #ffffff;
+    --card-foreground: #09090b;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --secondary: #e4e4e7; /* Zinc-200 */
+    --secondary-foreground: #09090b;
+    --muted: #f4f4f5;
+    --muted-foreground: #71717a; /* Zinc-500 */
+    --accent: #e4e4e7;
+    --accent-foreground: #09090b;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #e4e4e7; /* Zinc-200 */
+    --input: #e4e4e7;
+    --ring: #3b82f6;
+
+    --radius-lg: 1rem;
+    --radius-md: 0.75rem;
+    --radius-sm: 0.5rem;
+
+    /* Accent color variables default to Blue */
+    --accent-color: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.15);
+  }
+
+  .dark {
+    --background: #09090b; /* Zinc-950 */
+    --foreground: #fafafa; /* Zinc-50 */
+    --card: #0c0c0e; /* Deep dark black */
+    --card-foreground: #fafafa;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --secondary: #18181b; /* Zinc-900 */
+    --secondary-foreground: #fafafa;
+    --muted: #18181b;
+    --muted-foreground: #a1a1aa; /* Zinc-400 */
+    --accent: #18181b;
+    --accent-foreground: #fafafa;
+    --destructive: #ef4444;
+    --destructive-foreground: #fafafa;
+    --border: #18181b; /* Zinc-900 */
+    --input: #18181b;
+    --ring: #3b82f6;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .text-gradient {
+    background: linear-gradient(to right, var(--accent-color), #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Dynamic Accent utility classes */
+  .text-accent-custom {
+    color: var(--accent-color);
+  }
+  .bg-accent-custom {
+    background-color: var(--accent-color);
+  }
+  .border-accent-custom {
+    border-color: var(--accent-color);
+  }
+  .shadow-accent-custom {
+    box-shadow: 0 0 25px var(--accent-glow);
+  }
+  .accent-stroke-custom {
+    stroke: var(--accent-color);
+  }
+  .accent-fill-custom {
+    fill: var(--accent-color);
+  }
+  .accent-ring-custom:focus {
+    --tw-ring-color: var(--accent-color);
+  }
 }
