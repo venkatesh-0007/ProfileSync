@@ -4,7 +4,7 @@
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20,24,30&height=220&section=header&text=ProfileSync&fontSize=78&fontColor=ffffff&animation=fadeIn&fontAlignY=38&desc=One+Avatar.+Five+Platforms.+Perfect+Sync.&descAlignY=60&descAlign=50&descColor=aaaaff&descSize=20" width="100%" />
 
 <!-- Typing animation -->
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=20&duration=2800&pause=900&color=6366F1&center=true&vCenter=true&multiline=true&repeat=true&width=650&height=70&lines=Upload+your+photo+once+%F0%9F%93%B8;Verify+sync+across+all+your+profiles+%E2%9C%85;Built+for+developers+who+care+about+their+brand+%F0%9F%9A%80" />
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=20&duration=2800&pause=900&color=6366F1&center=true&vCenter=true&multiline=true&repeat=true&width=650&height=70&lines=Upload+your+photo+once+%F0%9F%93%B8;Verify+sync+across+all+your+profiles+%E2%9C%85" />
 
 <br/>
 
