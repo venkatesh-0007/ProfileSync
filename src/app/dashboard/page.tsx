@@ -12,6 +12,7 @@ import {
   RefreshCw, Sparkles
 } from "lucide-react";
 import { GithubIcon as Github, LinkedinIcon as Linkedin } from "@/components/icons";
+import Starfield from "@/components/Starfield";
 import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -202,14 +203,14 @@ export default function DashboardPage() {
       : null;
     const statusObj = comparisonResults[platform.id];
     
-    let cardBorderClass = "border-zinc-200 dark:border-zinc-900 bg-card hover:border-zinc-300 dark:hover:border-zinc-800";
+    let cardBorderClass = "border-zinc-200 dark:border-zinc-900 bg-card hover:border-zinc-300 dark:hover:border-zinc-800 shadow-lg shadow-zinc-200/20 dark:shadow-zinc-900/20";
     let badgeText = "Pending";
     let badgeClass = "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-850";
     let statusDescription = "";
     let mainButton: React.ReactNode = null;
 
     if (!username) {
-      cardBorderClass = "border-zinc-200/50 dark:border-zinc-950 bg-card opacity-60 hover:opacity-100 transition-opacity duration-300";
+      cardBorderClass = "border-zinc-200/50 dark:border-zinc-950 bg-card opacity-60 hover:opacity-100 transition-opacity duration-300 shadow-md shadow-zinc-200/10 dark:shadow-zinc-900/10";
       badgeText = "Empty Profile";
       badgeClass = "bg-zinc-100 dark:bg-zinc-950 text-zinc-400 dark:text-zinc-600 border border-zinc-200/80 dark:border-zinc-900/80";
       statusDescription = "No username linked yet. Configure this in the Settings tab.";
@@ -250,7 +251,7 @@ export default function DashboardPage() {
           </Button>
         );
       } else if (compStatus === "empty") {
-        cardBorderClass = "border-amber-500/30 dark:border-amber-500/20 bg-amber-500/5 dark:bg-amber-950/5 hover:border-amber-500/40 transition-colors duration-300";
+        cardBorderClass = "border-amber-500/30 dark:border-amber-500/20 bg-amber-500/5 dark:bg-amber-950/5 hover:border-amber-500/40 transition-colors duration-300 shadow-xl shadow-amber-500/20 dark:shadow-amber-500/10";
         badgeText = "Empty Profile";
         badgeClass = "bg-amber-500/10 text-amber-600 dark:text-amber-450 border border-amber-500/20";
         statusDescription = `No profile picture uploaded on ${platform.name}.`;
@@ -265,7 +266,7 @@ export default function DashboardPage() {
           </a>
         );
       } else if (compStatus === "fallback") {
-        cardBorderClass = "border-zinc-250 dark:border-zinc-800 bg-card hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors duration-300";
+        cardBorderClass = "border-zinc-250 dark:border-zinc-800 bg-card hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors duration-300 shadow-xl shadow-zinc-500/10 dark:shadow-zinc-500/5";
         badgeText = "Unverified";
         badgeClass = "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800";
         statusDescription = `Profile picture is protected or private. Please manually verify.`;
@@ -282,7 +283,7 @@ export default function DashboardPage() {
           </a>
         );
       } else if (compStatus === "matched") {
-        cardBorderClass = "border-emerald-500/30 dark:border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-950/10 hover:border-emerald-500/40 transition-colors duration-300";
+        cardBorderClass = "border-emerald-500/30 dark:border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-950/10 hover:border-emerald-500/40 transition-colors duration-300 shadow-xl shadow-emerald-500/20 dark:shadow-emerald-500/10";
         badgeText = "Synced";
         badgeClass = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20";
         const similarity = Math.max(0, Math.round(100 - (statusObj?.difference || 0)));
@@ -296,7 +297,7 @@ export default function DashboardPage() {
           </Button>
         );
       } else if (compStatus === "mismatched") {
-        cardBorderClass = "border-amber-500/30 dark:border-amber-500/20 bg-amber-500/5 dark:bg-amber-950/5 hover:border-amber-500/40 transition-colors duration-300";
+        cardBorderClass = "border-amber-500/30 dark:border-amber-500/20 bg-amber-500/5 dark:bg-amber-950/5 hover:border-amber-500/40 transition-colors duration-300 shadow-xl shadow-amber-500/20 dark:shadow-amber-500/10";
         badgeText = "Out of Sync";
         badgeClass = "bg-amber-500/10 text-amber-600 dark:text-amber-450 border border-amber-500/20";
         const similarity = Math.max(0, Math.round(100 - (statusObj?.difference || 0)));
@@ -312,7 +313,7 @@ export default function DashboardPage() {
           </Button>
         );
       } else if (compStatus === "error") {
-        cardBorderClass = "border-rose-500/30 dark:border-rose-500/20 bg-rose-500/5 dark:bg-rose-950/5 hover:border-rose-500/40 transition-colors duration-300";
+        cardBorderClass = "border-rose-500/30 dark:border-rose-500/20 bg-rose-500/5 dark:bg-rose-950/5 hover:border-rose-500/40 transition-colors duration-300 shadow-xl shadow-rose-500/20 dark:shadow-rose-500/10";
         badgeText = "Unverified";
         badgeClass = "bg-rose-500/10 text-rose-600 dark:text-rose-450 border border-rose-500/20";
         statusDescription = statusObj?.errorMsg || "Could not fetch or verify live photo.";
@@ -366,8 +367,8 @@ export default function DashboardPage() {
           
           <CardContent className="pb-6 px-6 flex-grow flex flex-col justify-between space-y-6">
              {/* Live Profile Picture Display */}
-             <div className="flex items-center space-x-4 bg-secondary p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-inner">
-               <div className="w-14 h-14 rounded-full bg-zinc-100 dark:bg-zinc-855 flex items-center justify-center border border-zinc-300 dark:border-zinc-700 overflow-hidden relative shrink-0">
+             <div className="flex flex-col items-center bg-secondary p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-inner text-center">
+               <div className="w-44 h-44 rounded-full bg-zinc-100 dark:bg-zinc-855 flex items-center justify-center border border-zinc-300 dark:border-zinc-700 overflow-hidden relative shrink-0 shadow-xl">
                  {liveImageUrl ? (
                    <>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -376,12 +377,12 @@ export default function DashboardPage() {
                       }} />
                    </>
                  ) : (
-                   <UserCircle className="w-8 h-8 text-zinc-500" />
+                   <UserCircle className="w-20 h-20 text-zinc-500" />
                  )}
                </div>
-               <div className="flex-1 min-w-0">
-                 <p className="text-sm font-bold text-foreground truncate">Live Picture</p>
-                 <p className="text-xs text-zinc-500 truncate">
+               <div className="mt-6 w-full min-w-0">
+                 <p className="text-lg font-bold text-foreground truncate">Live Picture</p>
+                 <p className="text-sm text-zinc-500 truncate">
                    {username ? `@${username}` : "Not linked"}
                  </p>
                </div>
@@ -416,6 +417,8 @@ export default function DashboardPage() {
 
       {/* Main Content — full width */}
       <main className="flex-1 overflow-y-auto bg-background relative flex flex-col">
+        <Starfield />
+        
         {/* Decorative glow */}
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-accent-custom/5 rounded-full blur-[140px] pointer-events-none" />
 
@@ -437,7 +440,7 @@ export default function DashboardPage() {
                 className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                   activeTab === "overview"
                     ? "bg-card text-foreground shadow-sm border border-zinc-200 dark:border-zinc-800"
-                    : "text-zinc-500 hover:text-foreground"
+                    : "text-zinc-500 hover:text-foreground border border-transparent"
                 }`}
               >
                 Overview
@@ -447,7 +450,7 @@ export default function DashboardPage() {
                 className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                   activeTab === "settings"
                     ? "bg-card text-foreground shadow-sm border border-zinc-200 dark:border-zinc-800"
-                    : "text-zinc-500 hover:text-foreground"
+                    : "text-zinc-500 hover:text-foreground border border-transparent"
                 }`}
               >
                 Settings
@@ -527,30 +530,37 @@ export default function DashboardPage() {
                   : "Configure your account and preferences."}
               </p>
             </div>
-            {activeTab === "overview" && (
-              <div className="flex flex-col items-end space-y-2 bg-card p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl min-w-[220px] w-full sm:w-auto">
-                <div className="flex justify-between w-full">
-                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Sync Progress</span>
-                  <span className="text-sm font-black text-foreground">{Math.round(progress)}%</span>
-                </div>
-                <Progress value={progress} className="h-2.5 w-full bg-secondary [&>div]:bg-accent-custom" />
-              </div>
-            )}
+            <AnimatePresence mode="popLayout">
+              {activeTab === "overview" && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col items-end space-y-2 bg-card p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl min-w-[220px] w-full sm:w-auto"
+                >
+                  <div className="flex justify-between w-full">
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Sync Progress</span>
+                    <span className="text-sm font-black text-foreground">{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2.5 w-full bg-secondary [&>div]:bg-accent-custom" />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <AnimatePresence mode="wait">
             {activeTab === "overview" ? (
               <motion.div
                 key="overview"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="grid grid-cols-1 xl:grid-cols-5 gap-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
               >
-                {/* Left Side: Master Profile Column */}
-                <div className="xl:col-span-1 space-y-6">
-                  <Card className="border-zinc-200 dark:border-zinc-800 shadow-2xl bg-card rounded-[2.5rem] overflow-hidden sticky top-28">
+                {/* Fixed Master Profile Card - visible on xl screens */}
+                <div className="hidden xl:block fixed top-[13rem] left-10 w-[280px] z-20">
+                  <Card className="border-2 border-accent-custom shadow-accent-custom bg-card rounded-[2.5rem] overflow-hidden transition-all duration-500">
                     <CardHeader className="pb-6 pt-8 px-8">
                       <CardTitle className="text-2xl font-bold text-foreground">Master Profile</CardTitle>
                       <CardDescription className="text-zinc-500">Your single source of identity truth.</CardDescription>
@@ -617,8 +627,81 @@ export default function DashboardPage() {
                   </Card>
                 </div>
 
-                {/* Right Side: Grouped Socials and Coding Platforms */}
-                <div className="xl:col-span-4 space-y-10">
+                {/* Mobile Master Profile Card - scrollable on smaller screens */}
+                <div className="xl:hidden mb-8">
+                  <Card className="border-2 border-accent-custom shadow-accent-custom bg-card rounded-[2.5rem] overflow-hidden transition-all duration-500">
+                    <CardHeader className="pb-6 pt-8 px-8">
+                      <CardTitle className="text-2xl font-bold text-foreground">Master Profile</CardTitle>
+                      <CardDescription className="text-zinc-500">Your single source of identity truth.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col items-center px-8 pb-8 text-center">
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="relative group w-44 h-44 rounded-full border border-zinc-200 dark:border-zinc-700 bg-secondary flex items-center justify-center overflow-hidden shadow-2xl transition-all hover:border-accent-custom cursor-pointer"
+                      >
+                        {masterAvatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={masterAvatar} alt="Master Avatar" className="w-full h-full object-cover animate-fade-in" />
+                        ) : (
+                          <UserCircle className="w-20 h-20 text-zinc-500 transition-transform group-hover:scale-110 duration-500" />
+                        )}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                          <ImageIcon className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+
+                      <input 
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+
+                      <div className="mt-6 w-full">
+                        <p className="font-bold text-lg truncate text-foreground">{email?.split("@")[0]}</p>
+                        <p className="text-xs text-zinc-500 truncate">{email}</p>
+                      </div>
+
+                      <Button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="mt-6 w-full bg-accent-custom text-white hover:opacity-90 font-bold rounded-full py-6 shadow-accent-custom transition-all"
+                      >
+                        <ImageIcon className="mr-2 w-5 h-5" />
+                        {masterAvatar ? "Change Photo" : "Upload Photo"}
+                      </Button>
+
+                      {masterAvatar && (
+                        <Button 
+                          onClick={handleRemoveAvatar}
+                          variant="ghost" 
+                          className="mt-3 w-full text-zinc-500 hover:text-red-400 font-medium rounded-full py-2 hover:bg-red-500/10"
+                        >
+                          Remove Photo
+                        </Button>
+                      )}
+
+                      {/* Active Connection Stats */}
+                      <div className="w-full border-t border-zinc-150 dark:border-zinc-900 mt-6 pt-6 grid grid-cols-2 gap-4">
+                        <div className="text-center">
+                          <p className="text-2xl font-black text-foreground">{activePlatforms.length}</p>
+                          <p className="text-xxs font-bold text-zinc-500 uppercase tracking-widest mt-1">Linked</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-black text-foreground">{matchedCount}</p>
+                          <p className="text-xxs font-bold text-zinc-500 uppercase tracking-widest mt-1">Synced</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Right Side: Platform Cards - offset on xl to make room for fixed card */}
+                <motion.div 
+                  initial={{ y: 20, filter: "blur(8px)" }}
+                  animate={{ y: 0, filter: "blur(0px)" }}
+                  transition={{ type: "spring", bounce: 0, duration: 0.5, delay: 0.1 }}
+                  className="xl:ml-[310px] space-y-10"
+                >
                   
                   {/* Social Networks Group */}
                   <div className="space-y-6">
@@ -626,7 +709,7 @@ export default function DashboardPage() {
                       <span className="w-2.5 h-2.5 rounded-full bg-accent-custom mr-3 shadow-accent-custom shrink-0" />
                       Social Networks
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                       {PLATFORMS.filter(p => p.id === "linkedin" || p.id === "github").map((platform, idx) => 
                         renderPlatformCard(platform, idx)
                       )}
@@ -646,15 +729,15 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                </div>
+                </motion.div>
               </motion.div>
             ) : (
               <motion.div
                 key="settings"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 20, filter: "blur(8px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -20, filter: "blur(8px)" }}
+                transition={{ type: "spring", bounce: 0, duration: 0.5 }}
                 className="max-w-3xl space-y-8"
               >
                 {/* Account Settings */}
