@@ -16,7 +16,7 @@ interface CacheEntry {
 const IMAGE_CACHE = new Map<string, CacheEntry>();
 const CACHE_TTL = 60 * 1000; // 1 minute
 
-async function fetchLeetCodeAvatar(username: string): Promise<string | null> {
+async function fetchLeetCodeAvatar(username: string, refresh = false): Promise<string | null> {
   try {
     const query = `
       query getUserProfile($username: String!) {
@@ -28,7 +28,7 @@ async function fetchLeetCodeAvatar(username: string): Promise<string | null> {
       }
     `;
 
-    const res = await fetch("https://leetcode.com/graphql", {
+    const fetchOptions: RequestInit = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -38,8 +38,11 @@ async function fetchLeetCodeAvatar(username: string): Promise<string | null> {
         query,
         variables: { username },
       }),
-      next: { revalidate: 300 }
-    });
+    };
+    if (refresh) fetchOptions.cache = "no-store";
+    else fetchOptions.next = { revalidate: 300 };
+
+    const res = await fetch("https://leetcode.com/graphql", fetchOptions);
 
     if (!res.ok) return null;
     const json = await res.json();
@@ -57,12 +60,13 @@ async function fetchLeetCodeAvatar(username: string): Promise<string | null> {
   }
 }
 
-async function fetchCodeforcesAvatar(username: string): Promise<string | null> {
+async function fetchCodeforcesAvatar(username: string, refresh = false): Promise<string | null> {
   try {
-    const res = await fetch(`https://codeforces.com/api/user.info?handles=${username}`, {
-      headers: { "User-Agent": USER_AGENT },
-      next: { revalidate: 300 }
-    });
+    const fetchOptions: RequestInit = { headers: { "User-Agent": USER_AGENT } };
+    if (refresh) fetchOptions.cache = "no-store";
+    else fetchOptions.next = { revalidate: 300 };
+
+    const res = await fetch(`https://codeforces.com/api/user.info?handles=${username}`, fetchOptions);
     if (!res.ok) return null;
     const json = await res.json();
     if (json.status === "OK" && json.result && json.result.length > 0) {
@@ -104,12 +108,13 @@ function isFallbackBuffer(buffer: Buffer, contentType: string): boolean {
   return false;
 }
 
-async function fetchCodeChefAvatar(username: string): Promise<string | null> {
+async function fetchCodeChefAvatar(username: string, refresh = false): Promise<string | null> {
   try {
-    const res = await fetch(`https://www.codechef.com/users/${username}`, {
-      headers: { "User-Agent": USER_AGENT },
-      next: { revalidate: 300 }
-    });
+    const fetchOptions: RequestInit = { headers: { "User-Agent": USER_AGENT } };
+    if (refresh) fetchOptions.cache = "no-store";
+    else fetchOptions.next = { revalidate: 300 };
+
+    const res = await fetch(`https://www.codechef.com/users/${username}`, fetchOptions);
     if (!res.ok) return null;
     const html = await res.text();
     
@@ -144,6 +149,7 @@ export async function GET(req: NextRequest) {
   const username = searchParams.get("username");
   const email = searchParams.get("email");
   const returnJson = searchParams.get("json") === "true";
+  const refresh = searchParams.get("refresh") === "true";
 
   if (!platform || !username) {
     return NextResponse.json({ error: "Missing platform or username parameter" }, { status: 400 });
@@ -208,7 +214,7 @@ export async function GET(req: NextRequest) {
   const cached = IMAGE_CACHE.get(cacheKey);
   const now = Date.now();
 
-  if (cached && (now - cached.timestamp < CACHE_TTL)) {
+  if (!refresh && cached && (now - cached.timestamp < CACHE_TTL)) {
     if (returnJson) {
       return NextResponse.json({
         platform,
@@ -242,15 +248,17 @@ export async function GET(req: NextRequest) {
 
   // Resolve image URL based on platform
   if (platform === "github") {
-    imageUrl = `https://unavatar.io/github/${cleanUsername}`;
+    // GitHub provides direct access. Bypassing unavatar prevents heavy edge caching.
+    imageUrl = `https://github.com/${cleanUsername}.png`;
   } else if (platform === "linkedin") {
+    // For linkedin we use unavatar. We cannot force cache bypass due to strict 25/day rate limit.
     imageUrl = `https://unavatar.io/linkedin/${cleanUsername}`;
   } else if (platform === "leetcode") {
-    imageUrl = await fetchLeetCodeAvatar(cleanUsername);
+    imageUrl = await fetchLeetCodeAvatar(cleanUsername, refresh);
   } else if (platform === "codeforces") {
-    imageUrl = await fetchCodeforcesAvatar(cleanUsername);
+    imageUrl = await fetchCodeforcesAvatar(cleanUsername, refresh);
   } else if (platform === "codechef") {
-    imageUrl = await fetchCodeChefAvatar(cleanUsername);
+    imageUrl = await fetchCodeChefAvatar(cleanUsername, refresh);
   }
 
   // If platform lookup yields nothing, try general unavatar fallback
@@ -265,10 +273,11 @@ export async function GET(req: NextRequest) {
   let contentType = "image/png";
 
   try {
-    let res = await fetch(finalUrl, {
-      headers: { "User-Agent": USER_AGENT },
-      next: { revalidate: 300 }
-    });
+    const fetchOptions: RequestInit = refresh
+      ? { headers: { "User-Agent": USER_AGENT }, cache: "no-store" }
+      : { headers: { "User-Agent": USER_AGENT }, next: { revalidate: 300 } };
+
+    let res = await fetch(finalUrl, fetchOptions);
 
     let isValidFetch = res.ok;
 
@@ -283,13 +292,11 @@ export async function GET(req: NextRequest) {
     }
 
     // If fetch failed, try general fallback
-    if (!isValidFetch && finalUrl !== `https://unavatar.io/${cleanUsername}`) {
-      finalUrl = `https://unavatar.io/${cleanUsername}`;
+    const unavatarFallbackUrl = `https://unavatar.io/${cleanUsername}`;
+    if (!isValidFetch && finalUrl !== unavatarFallbackUrl && !finalUrl.startsWith(`https://unavatar.io/${cleanUsername}`)) {
+      finalUrl = unavatarFallbackUrl;
       isEmpty = isDefaultAvatar(finalUrl);
-      res = await fetch(finalUrl, {
-        headers: { "User-Agent": USER_AGENT },
-        next: { revalidate: 300 }
-      });
+      res = await fetch(finalUrl, fetchOptions);
       isValidFetch = res.ok;
       if (isValidFetch) {
         const arrayBuffer = await res.arrayBuffer();
@@ -306,10 +313,7 @@ export async function GET(req: NextRequest) {
     if (!isValidFetch && email) {
       finalUrl = `https://unavatar.io/${email}`;
       isEmpty = isDefaultAvatar(finalUrl);
-      res = await fetch(finalUrl, {
-        headers: { "User-Agent": USER_AGENT },
-        next: { revalidate: 300 }
-      });
+      res = await fetch(finalUrl, fetchOptions);
       isValidFetch = res.ok;
       if (isValidFetch) {
         const arrayBuffer = await res.arrayBuffer();

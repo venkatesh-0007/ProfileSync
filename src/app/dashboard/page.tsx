@@ -62,6 +62,7 @@ export default function DashboardPage() {
     difference?: number;
     errorMsg?: string;
   }>>({});
+  const [refreshKeys, setRefreshKeys] = useState<Record<string, number>>({});
 
   const checkPlatformSync = async (platformId: string, username: string) => {
     if (!masterAvatar) return;
@@ -72,8 +73,10 @@ export default function DashboardPage() {
     }));
 
     try {
+      setRefreshKeys(prev => ({ ...prev, [platformId]: Date.now() }));
+      
       // 1. Fetch JSON metadata first to see if profile is empty or fallback is returned
-      const metaRes = await fetch(`/api/proxy-avatar?platform=${platformId}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email || "")}&json=true`);
+      const metaRes = await fetch(`/api/proxy-avatar?platform=${platformId}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email || "")}&json=true&refresh=true`);
       if (!metaRes.ok) {
         throw new Error("Failed to check profile status");
       }
@@ -102,7 +105,7 @@ export default function DashboardPage() {
       }
 
       // 2. Perform comparison
-      const liveProxyUrl = `/api/proxy-avatar?platform=${platformId}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email || "")}`;
+      const liveProxyUrl = `/api/proxy-avatar?platform=${platformId}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email || "")}&refresh=true`;
       // Allow up to 12% difference (88% similarity threshold) for perceptual hashing
       const res = await compareImages(masterAvatar, liveProxyUrl, 12);
       
@@ -198,8 +201,9 @@ export default function DashboardPage() {
 
   const renderPlatformCard = (platform: typeof PLATFORMS[number], index: number) => {
     const username = usernames[platform.id] || "";
+    const currentRefreshKey = refreshKeys[platform.id] || 0;
     const liveImageUrl = username 
-      ? `/api/proxy-avatar?platform=${platform.id}&username=${username}&email=${email || ""}` 
+      ? `/api/proxy-avatar?platform=${platform.id}&username=${username}&email=${email || ""}${currentRefreshKey ? `&_t=${currentRefreshKey}` : ''}` 
       : null;
     const statusObj = comparisonResults[platform.id];
     
