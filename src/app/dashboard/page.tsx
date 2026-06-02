@@ -103,8 +103,8 @@ export default function DashboardPage() {
 
       // 2. Perform comparison
       const liveProxyUrl = `/api/proxy-avatar?platform=${platformId}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email || "")}`;
-      // Allow up to 25% difference (75% similarity threshold) for better match tolerance
-      const res = await compareImages(masterAvatar, liveProxyUrl, 25);
+      // Allow up to 12% difference (88% similarity threshold) for perceptual hashing
+      const res = await compareImages(masterAvatar, liveProxyUrl, 12);
       
       setComparisonResults(prev => ({
         ...prev,

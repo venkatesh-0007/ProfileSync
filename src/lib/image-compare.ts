@@ -9,12 +9,12 @@ export function compareImages(
   thresholdPercent = 15
 ): Promise<{ isSimilar: boolean; difference: number }> {
   return new Promise((resolve, reject) => {
-    // 16x16 is sufficient for average color hash comparison
-    const size = 16;
+    // 32x32 grid for Average Hash (aHash)
+    const size = 32;
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
     if (!ctx) {
       return reject(new Error("Could not create canvas 2D context"));
@@ -32,65 +32,79 @@ export function compareImages(
 
     Promise.all([loadImg(imgUrl1), loadImg(imgUrl2)])
       .then(([img1, img2]) => {
-        // Draw first image
-        ctx.clearRect(0, 0, size, size);
-        ctx.drawImage(img1, 0, 0, size, size);
-        const data1 = ctx.getImageData(0, 0, size, size).data;
+        // Function to extract grayscale and compute average for masked pixels
+        const getHashData = (img: HTMLImageElement) => {
+          ctx.clearRect(0, 0, size, size);
+          ctx.drawImage(img, 0, 0, size, size);
+          const data = ctx.getImageData(0, 0, size, size).data;
+          
+          let totalGray = 0;
+          let validPixels = 0;
+          const grays = new Float32Array(size * size);
+          const validMap = new Uint8Array(size * size);
 
-        // Draw second image
-        ctx.clearRect(0, 0, size, size);
-        ctx.drawImage(img2, 0, 0, size, size);
-        const data2 = ctx.getImageData(0, 0, size, size).data;
+          for (let i = 0; i < data.length; i += 4) {
+            const pixelIndex = i / 4;
+            const x = pixelIndex % size;
+            const y = Math.floor(pixelIndex / size);
 
-        let totalDiff = 0;
-        let count = 0;
+            const dx = x - (size - 1) / 2;
+            const dy = y - (size - 1) / 2;
+            const dist = Math.sqrt(dx * dx + dy * dy);
 
-        for (let i = 0; i < data1.length; i += 4) {
-          const pixelIndex = i / 4;
-          const x = pixelIndex % size;
-          const y = Math.floor(pixelIndex / size);
+            // Skip corners to handle circular platform avatars
+            if (dist > (size / 2) * 0.95) {
+              continue;
+            }
 
-          // Distance from center of grid
-          const dx = x - (size - 1) / 2;
-          const dy = y - (size - 1) / 2;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+            // Skip fully transparent pixels
+            if (data[i + 3] === 0) continue;
 
-          // Skip corner pixels (outside circular center boundary)
-          if (dist > (size / 2) * 0.85) {
-            continue;
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // Standard luminosity formula
+            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+            grays[pixelIndex] = gray;
+            validMap[pixelIndex] = 1;
+            
+            totalGray += gray;
+            validPixels++;
           }
 
-          const r1 = data1[i];
-          const g1 = data1[i + 1];
-          const b1 = data1[i + 2];
-          const a1 = data1[i + 3];
+          const avgGray = validPixels > 0 ? totalGray / validPixels : 0;
+          
+          // Generate bitmask (1 if >= avg, 0 if < avg)
+          const bits = new Uint8Array(size * size);
+          for (let i = 0; i < grays.length; i++) {
+            if (validMap[i]) {
+              bits[i] = grays[i] >= avgGray ? 1 : 0;
+            }
+          }
 
-          const r2 = data2[i];
-          const g2 = data2[i + 1];
-          const b2 = data2[i + 2];
-          const a2 = data2[i + 3];
+          return { bits, validMap, validPixels };
+        };
 
-          // Skip comparisons if both are fully transparent (e.g., empty space)
-          if (a1 === 0 && a2 === 0) continue;
+        const hash1 = getHashData(img1);
+        const hash2 = getHashData(img2);
 
-          // Compute absolute differences
-          const diffR = Math.abs(r1 - r2);
-          const diffG = Math.abs(g1 - g2);
-          const diffB = Math.abs(b1 - b2);
-          const diffA = Math.abs(a1 - a2);
+        let hammingDistance = 0;
+        let comparedBits = 0;
 
-          // We weight the channel differences by average alpha to avoid false differences on transparent edges
-          const alphaFactor = ((a1 + a2) / 2) / 255;
-          const pixelDiff = ((diffR + diffG + diffB) / 3) * alphaFactor + diffA * (1 - alphaFactor);
-
-          totalDiff += pixelDiff;
-          count++;
+        for (let i = 0; i < size * size; i++) {
+          // Only compare pixels that are valid in BOTH images
+          if (hash1.validMap[i] && hash2.validMap[i]) {
+            if (hash1.bits[i] !== hash2.bits[i]) {
+              hammingDistance++;
+            }
+            comparedBits++;
+          }
         }
 
-        // Calculate average difference as a percentage (max difference is 255)
-        const averageDiff = count > 0 ? totalDiff / count : 0;
-        const percentDiff = (averageDiff / 255) * 100;
+        const percentDiff = comparedBits > 0 ? (hammingDistance / comparedBits) * 100 : 0;
 
+        // Use the threshold passed from page.tsx (25%), but aHash differences > 15% are usually distinct images.
         resolve({
           isSimilar: percentDiff <= thresholdPercent,
           difference: percentDiff,
