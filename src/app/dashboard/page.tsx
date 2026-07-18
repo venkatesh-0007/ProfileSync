@@ -9,7 +9,9 @@ import {
   Settings, CheckCircle2,
   Image as ImageIcon, ExternalLink,
   UserCircle, Moon, Sun, LogOut, Save,
-  RefreshCw, Sparkles
+  RefreshCw, Sparkles, LayoutDashboard,
+  ShieldCheck, AlertCircle, UploadCloud, Trash2,
+  Menu, X
 } from "lucide-react";
 import { GithubIcon as Github, LinkedinIcon as Linkedin } from "@/components/icons";
 import Starfield from "@/components/Starfield";
@@ -18,17 +20,99 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
 import { useUser, Usernames } from "@/context/UserContext";
 import { compareImages } from "@/lib/image-compare";
 
 const PLATFORMS = [
-  { id: "linkedin", unavatarId: "linkedin", name: "LinkedIn", icon: Linkedin, color: "text-blue-500", editUrl: "https://www.linkedin.com/in/me/edit/photo/" },
-  { id: "github", unavatarId: "github", name: "GitHub", icon: Github, color: "text-zinc-800 dark:text-white", editUrl: "https://github.com/settings/profile" },
-  { id: "leetcode", unavatarId: "leetcode", name: "LeetCode", icon: Code, color: "text-orange-500", editUrl: "https://leetcode.com/profile/" },
-  { id: "codechef", unavatarId: "codechef", name: "CodeChef", icon: Terminal, color: "text-amber-700", editUrl: "https://www.codechef.com/" },
-  { id: "codeforces", unavatarId: "codeforces", name: "Codeforces", icon: Zap, color: "text-red-500", editUrl: "https://codeforces.com/settings/general" },
+  { 
+    id: "linkedin", 
+    unavatarId: "linkedin", 
+    name: "LinkedIn", 
+    icon: Linkedin, 
+    color: "text-blue-500", 
+    glowClass: "hover:border-blue-500/50 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)]",
+    editUrl: "https://www.linkedin.com/in/me/edit/photo/" 
+  },
+  { 
+    id: "github", 
+    unavatarId: "github", 
+    name: "GitHub", 
+    icon: Github, 
+    color: "text-zinc-850 dark:text-white", 
+    glowClass: "hover:border-zinc-400 dark:hover:border-zinc-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.15)]",
+    editUrl: "https://github.com/settings/profile" 
+  },
+  { 
+    id: "leetcode", 
+    unavatarId: "leetcode", 
+    name: "LeetCode", 
+    icon: Code, 
+    color: "text-orange-500", 
+    glowClass: "hover:border-orange-500/50 hover:shadow-[0_0_30px_rgba(249,115,22,0.2)]",
+    editUrl: "https://leetcode.com/profile/" 
+  },
+  { 
+    id: "codechef", 
+    unavatarId: "codechef", 
+    name: "CodeChef", 
+    icon: Terminal, 
+    color: "text-amber-755", 
+    glowClass: "hover:border-amber-700/50 hover:shadow-[0_0_30px_rgba(180,83,9,0.2)]",
+    editUrl: "https://www.codechef.com/" 
+  },
+  { 
+    id: "codeforces", 
+    unavatarId: "codeforces", 
+    name: "Codeforces", 
+    icon: Zap, 
+    color: "text-red-500", 
+    glowClass: "hover:border-red-500/50 hover:shadow-[0_0_30px_rgba(239,68,68,0.2)]",
+    editUrl: "https://codeforces.com/settings/general" 
+  },
 ];
+
+const compressImage = (file: File, maxWidth = 256, maxHeight = 256): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => reject(new Error("Failed to load image for resizing"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -48,7 +132,7 @@ export default function DashboardPage() {
   
   const [activeTab, setActiveTab] = useState<"overview" | "settings">("overview");
   const [localUsernames, setLocalUsernames] = useState<Usernames>(usernames);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync settings local form state with usernames from context
@@ -106,8 +190,8 @@ export default function DashboardPage() {
 
       // 2. Perform comparison
       const liveProxyUrl = `/api/proxy-avatar?platform=${platformId}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email || "")}&refresh=true`;
-      // Allow up to 12% difference (88% similarity threshold) for perceptual hashing
-      const res = await compareImages(masterAvatar, liveProxyUrl, 12);
+      // Allow up to 15% difference (85% similarity threshold) for robust matching
+      const res = await compareImages(masterAvatar, liveProxyUrl, 15);
       
       setComparisonResults(prev => ({
         ...prev,
@@ -120,7 +204,7 @@ export default function DashboardPage() {
       console.error(`Failed to compare image for ${platformId}:`, err);
       const errorMsg = err instanceof Error 
         ? err.message 
-        : (err?.type === "error" ? "Could not load or render profile picture" : "Failed to fetch/verify photo");
+        : (err?.type === "error" ? "Could not render profile photo" : "Failed to verify photo");
       setComparisonResults(prev => ({
         ...prev,
         [platformId]: { 
@@ -166,19 +250,22 @@ export default function DashboardPage() {
     ? (matchedCount / activePlatforms.length) * 100 
     : 0;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
         alert("Please select a valid image file.");
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
-        updateMasterAvatar(base64);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await compressImage(file);
+        updateMasterAvatar(compressedBase64);
+      } catch (err) {
+        console.error("Failed to compress image:", err);
+        alert("Could not load or compress image. Please try another one.");
+      } finally {
+        e.target.value = ""; // Reset file input so that upload works for the same image path
+      }
     }
   };
 
@@ -206,56 +293,56 @@ export default function DashboardPage() {
       ? `/api/proxy-avatar?platform=${platform.id}&username=${username}&email=${email || ""}${currentRefreshKey ? `&_t=${currentRefreshKey}` : ''}` 
       : null;
     const statusObj = comparisonResults[platform.id];
+    const compStatus = statusObj?.status || "idle";
+    const similarity = Math.max(0, Math.round(100 - (statusObj?.difference || 0)));
     
-    let cardBorderClass = "border-zinc-200 dark:border-zinc-900 bg-card hover:border-zinc-300 dark:hover:border-zinc-800 shadow-lg shadow-zinc-200/20 dark:shadow-zinc-900/20";
+    let cardBorderClass = "border-zinc-200 dark:border-zinc-900 bg-card/65 dark:bg-card/45 backdrop-blur-md hover:border-zinc-300 dark:hover:border-zinc-800 shadow-md";
     let badgeText = "Pending";
-    let badgeClass = "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-850";
+    let badgeClass = "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800";
     let statusDescription = "";
     let mainButton: React.ReactNode = null;
 
     if (!username) {
-      cardBorderClass = "border-zinc-200/50 dark:border-zinc-950 bg-card opacity-60 hover:opacity-100 transition-opacity duration-300 shadow-md shadow-zinc-200/10 dark:shadow-zinc-900/10";
+      cardBorderClass = "border-zinc-200/50 dark:border-zinc-950 bg-card/40 dark:bg-card/20 opacity-55 hover:opacity-100 transition-all duration-300";
       badgeText = "Empty Profile";
-      badgeClass = "bg-zinc-100 dark:bg-zinc-950 text-zinc-400 dark:text-zinc-600 border border-zinc-200/80 dark:border-zinc-900/80";
-      statusDescription = "No username linked yet. Configure this in the Settings tab.";
+      badgeClass = "bg-zinc-100 dark:bg-zinc-950 text-zinc-400 dark:text-zinc-650 border border-zinc-200/80 dark:border-zinc-900/80";
+      statusDescription = "No username linked yet. Add it in the Settings panel.";
       mainButton = (
         <Button 
           onClick={() => setActiveTab("settings")} 
-          className="w-full font-bold rounded-xl bg-secondary hover:bg-zinc-200 dark:hover:bg-zinc-800 text-foreground border border-zinc-200 dark:border-zinc-800 py-6 transition-colors"
+          className="w-full font-bold rounded-xl bg-secondary hover:bg-zinc-250 dark:hover:bg-zinc-800 text-foreground border border-zinc-200 dark:border-zinc-800 py-5 transition-colors text-xs"
         >
-          Setup Username
+          Configure Username
         </Button>
       );
     } else if (!masterAvatar) {
       badgeText = "Linked";
-      badgeClass = "bg-blue-500/10 text-blue-500 border border-blue-500/20 dark:border-blue-500/10";
-      statusDescription = "Profile linked. Upload a Master Avatar to compare visual sync.";
+      badgeClass = "bg-blue-500/10 text-blue-500 border border-blue-500/25";
+      statusDescription = "Account connected. Upload a master avatar to begin visual verification.";
       mainButton = (
         <Button 
           onClick={() => fileInputRef.current?.click()} 
-          className="w-full font-bold rounded-xl bg-accent-custom text-white hover:opacity-90 py-6 shadow-accent-custom transition-all"
+          className="w-full font-bold rounded-xl bg-accent-custom text-white hover:opacity-90 py-5 shadow-accent-custom transition-all text-xs"
         >
           Upload Master Photo
         </Button>
       );
     } else {
-      const compStatus = statusObj?.status || "idle";
-
       if (compStatus === "checking") {
-        badgeText = "Comparing...";
-        badgeClass = "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 animate-pulse";
-        statusDescription = "Verifying picture matches Master Avatar...";
+        badgeText = "Scanning...";
+        badgeClass = "bg-accent-custom/10 text-accent-custom border border-accent-custom/20 animate-pulse";
+        statusDescription = "Scanning profile photo and matching visual vectors...";
         mainButton = (
           <Button 
             disabled 
-            className="w-full font-bold rounded-xl bg-secondary text-zinc-400 py-6 flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-850"
+            className="w-full font-bold rounded-xl bg-secondary text-zinc-400 py-5 flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-855 text-xs"
           >
-            <RefreshCw className="w-5 h-5 animate-spin text-zinc-400" />
+            <RefreshCw className="w-4 h-4 animate-spin text-zinc-405" />
             Comparing...
           </Button>
         );
       } else if (compStatus === "empty") {
-        cardBorderClass = "border-amber-500/30 dark:border-amber-500/20 bg-amber-500/5 dark:bg-amber-950/5 hover:border-amber-500/40 transition-colors duration-300 shadow-xl shadow-amber-500/20 dark:shadow-amber-500/10";
+        cardBorderClass = "border-amber-500/20 dark:border-amber-500/15 bg-amber-500/5 dark:bg-amber-955/5 shadow-md shadow-amber-500/5";
         badgeText = "Empty Profile";
         badgeClass = "bg-amber-500/10 text-amber-600 dark:text-amber-450 border border-amber-500/20";
         statusDescription = `No profile picture uploaded on ${platform.name}.`;
@@ -263,83 +350,69 @@ export default function DashboardPage() {
         mainButton = (
           <a href={editUrlVal} target="_blank" rel="noreferrer" className="w-full block">
             <Button 
-              className="w-full font-bold rounded-xl bg-accent-custom text-white hover:opacity-90 py-6 shadow-accent-custom transition-all"
+              className="w-full font-bold rounded-xl bg-accent-custom text-white hover:opacity-90 py-5 shadow-accent-custom transition-all text-xs"
             >
               Upload on {platform.name}
             </Button>
           </a>
         );
       } else if (compStatus === "fallback") {
-        cardBorderClass = "border-zinc-250 dark:border-zinc-800 bg-card hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors duration-300 shadow-xl shadow-zinc-500/10 dark:shadow-zinc-500/5";
+        cardBorderClass = "border-zinc-300 dark:border-zinc-800 bg-card/65 dark:bg-card/45";
         badgeText = "Unverified";
-        badgeClass = "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800";
-        statusDescription = `Profile picture is protected or private. Please manually verify.`;
+        badgeClass = "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 border border-zinc-200 dark:border-zinc-800";
+        statusDescription = `Profile is private or protected. Verify manually.`;
         const editUrlVal = (platform.id === "codechef" && username) ? `https://www.codechef.com/users/${username}/edit` : platform.editUrl;
         mainButton = (
           <a href={editUrlVal} target="_blank" rel="noreferrer" className="w-full block">
             <Button 
               variant="outline"
-              className="w-full font-bold rounded-xl text-accent-custom border border-accent-custom/25 bg-accent-custom/5 hover:bg-accent-custom/10 py-6 flex items-center justify-center gap-2 transition-all"
+              className="w-full font-bold rounded-xl text-accent-custom border border-accent-custom/25 bg-accent-custom/5 hover:bg-accent-custom/10 py-5 flex items-center justify-center gap-2 transition-all text-xs"
             >
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="w-3.5 h-3.5" />
               Verify on {platform.name}
             </Button>
           </a>
         );
       } else if (compStatus === "matched") {
-        cardBorderClass = "border-emerald-500/30 dark:border-emerald-500/20 bg-emerald-500/5 dark:bg-emerald-950/10 hover:border-emerald-500/40 transition-colors duration-300 shadow-xl shadow-emerald-500/20 dark:shadow-emerald-500/10";
+        cardBorderClass = "border-emerald-500/40 dark:border-emerald-500/25 bg-emerald-500/5 dark:bg-emerald-955/10 shadow-lg shadow-emerald-500/10 dark:shadow-emerald-950/10";
         badgeText = "Synced";
         badgeClass = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20";
-        const similarity = Math.max(0, Math.round(100 - (statusObj?.difference || 0)));
-        statusDescription = `Synced! Profile photo matches Master Avatar (${similarity}% match).`;
+        statusDescription = `Success! Visually synchronized with Master Avatar.`;
         mainButton = (
           <Button 
             variant="outline" 
-            className="w-full font-bold rounded-xl text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 dark:hover:bg-emerald-500/10 py-6 cursor-default transition-all"
+            className="w-full font-bold rounded-xl text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 py-5 cursor-default transition-all text-xs"
           >
-            <CheckCircle2 className="w-5 h-5 mr-2" /> Matches Master
+            <CheckCircle2 className="w-4 h-4 mr-2" /> Matches Master
           </Button>
         );
       } else if (compStatus === "mismatched") {
-        cardBorderClass = "border-amber-500/30 dark:border-amber-500/20 bg-amber-500/5 dark:bg-amber-950/5 hover:border-amber-500/40 transition-colors duration-300 shadow-xl shadow-amber-500/20 dark:shadow-amber-500/10";
+        cardBorderClass = "border-amber-500/40 dark:border-amber-500/25 bg-amber-500/5 dark:bg-amber-955/10 shadow-lg shadow-amber-500/10 dark:shadow-amber-950/10";
         badgeText = "Out of Sync";
         badgeClass = "bg-amber-500/10 text-amber-600 dark:text-amber-450 border border-amber-500/20";
-        const similarity = Math.max(0, Math.round(100 - (statusObj?.difference || 0)));
-        statusDescription = `Different photo detected on platform (${similarity}% match).`;
+        statusDescription = `Mismatched content detected on platform.`;
         mainButton = (
           <Button 
             onClick={() => checkPlatformSync(platform.id, username)} 
             variant="outline" 
-            className="w-full font-bold rounded-xl text-amber-600 dark:text-amber-450 border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/10 dark:hover:bg-amber-500/10 py-6 flex items-center justify-center gap-2 transition-all"
+            className="w-full font-bold rounded-xl text-amber-600 dark:text-amber-450 border border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/10 py-5 flex items-center justify-center gap-2 transition-all text-xs"
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className="w-4 h-4" />
             Verify Sync
           </Button>
         );
       } else if (compStatus === "error") {
-        cardBorderClass = "border-rose-500/30 dark:border-rose-500/20 bg-rose-500/5 dark:bg-rose-950/5 hover:border-rose-500/40 transition-colors duration-300 shadow-xl shadow-rose-500/20 dark:shadow-rose-500/10";
-        badgeText = "Unverified";
+        cardBorderClass = "border-rose-500/40 dark:border-rose-500/25 bg-rose-500/5 dark:bg-rose-955/10 shadow-md shadow-rose-500/5";
+        badgeText = "Error";
         badgeClass = "bg-rose-500/10 text-rose-600 dark:text-rose-450 border border-rose-500/20";
-        statusDescription = statusObj?.errorMsg || "Could not fetch or verify live photo.";
+        statusDescription = statusObj?.errorMsg || "Connection timed out fetching photo.";
         mainButton = (
           <Button 
             onClick={() => checkPlatformSync(platform.id, username)} 
-            className="w-full font-bold rounded-xl bg-secondary text-foreground border border-zinc-200 dark:border-zinc-800 py-6 flex items-center justify-center gap-2 transition-all"
+            className="w-full font-bold rounded-xl bg-secondary text-foreground border border-zinc-200 dark:border-zinc-800 py-5 flex items-center justify-center gap-2 transition-all text-xs"
           >
-            <RefreshCw className="w-5 h-5" />
-            Retry Verification
-          </Button>
-        );
-      } else {
-        badgeText = "Pending";
-        badgeClass = "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-850";
-        statusDescription = "Click verification to check image matching.";
-        mainButton = (
-          <Button 
-            onClick={() => checkPlatformSync(platform.id, username)} 
-            className="w-full font-bold rounded-xl bg-accent-custom text-white hover:opacity-90 py-6 flex items-center justify-center gap-2 transition-all"
-          >
-            Verify Sync
+            <RefreshCw className="w-4 h-4" />
+            Retry
           </Button>
         );
       }
@@ -352,64 +425,126 @@ export default function DashboardPage() {
     return (
       <motion.div
         key={platform.id}
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: index * 0.1, duration: 0.3 }}
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.08, duration: 0.35, ease: "easeOut" }}
+        className="h-full"
       >
-        <Card className={`flex flex-col h-full transition-all duration-500 border rounded-[2rem] overflow-hidden ${cardBorderClass}`}>
-          <CardHeader className="pb-4 pt-6 px-6">
-            <div className="flex justify-between items-start">
-              <div className={`p-4 rounded-2xl bg-secondary border border-zinc-200 dark:border-zinc-800 ${platform.color} shadow-inner`}>
-                <platform.icon className="w-6 h-6" />
+        <Card className={`flex flex-col h-full transition-all duration-300 border rounded-3xl overflow-hidden hover:scale-[1.01] ${platform.glowClass} ${cardBorderClass}`}>
+          <CardHeader className="pb-3 pt-5 px-5">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl bg-secondary border border-zinc-200 dark:border-zinc-800 ${platform.color} shadow-inner`}>
+                  <platform.icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-bold text-foreground">{platform.name}</CardTitle>
+                  <p className="text-xs text-zinc-550 dark:text-zinc-500 truncate max-w-[120px]">
+                    {username ? `@${username}` : "Unlinked"}
+                  </p>
+                </div>
               </div>
-              <Badge className={`px-4 py-1.5 rounded-full font-bold ${badgeClass}`}>
+              <Badge className={`px-3 py-1 rounded-full font-bold text-xxs ${badgeClass}`}>
                 {badgeText}
               </Badge>
             </div>
-            <CardTitle className="mt-6 text-2xl font-bold text-foreground">{platform.name}</CardTitle>
           </CardHeader>
           
-          <CardContent className="pb-6 px-6 flex-grow flex flex-col justify-between space-y-6">
-             {/* Live Profile Picture Display */}
-             <div className="flex flex-col items-center bg-secondary p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-inner text-center">
-               <div className="w-44 h-44 rounded-full bg-zinc-100 dark:bg-zinc-855 flex items-center justify-center border border-zinc-300 dark:border-zinc-700 overflow-hidden relative shrink-0 shadow-xl">
-                 {liveImageUrl ? (
-                   <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={liveImageUrl} alt={`${username} on ${platform.name}`} className="w-full h-full object-cover animate-fade-in" onError={(e) => {
-                          (e.target as HTMLImageElement).src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
-                      }} />
-                   </>
+          <CardContent className="pb-4 px-5 flex-grow flex flex-col justify-between space-y-4">
+             {/* Dynamic Overlapping Comparison Display */}
+             <div className="flex items-center justify-center gap-4 bg-secondary/50 dark:bg-zinc-900/50 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800/80 relative overflow-hidden my-1">
+               {/* Left: Master Avatar */}
+               <div className="flex flex-col items-center gap-1.5 shrink-0">
+                 <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-accent-custom/50 shadow-md relative bg-secondary">
+                   {masterAvatar ? (
+                     <img src={masterAvatar} alt="Master Photo" className="w-full h-full object-cover" />
+                   ) : (
+                     <UserCircle className="w-full h-full text-zinc-450 dark:text-zinc-600" />
+                   )}
+                 </div>
+                 <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 tracking-wider">Master</span>
+               </div>
+
+               {/* Center Bridge: Displays Sync % and Line */}
+               <div className="flex flex-col items-center justify-center flex-1 min-w-[50px]">
+                 {compStatus === "checking" ? (
+                   <div className="w-8 h-8 rounded-full border-2 border-t-accent-custom border-zinc-200 dark:border-zinc-800 animate-spin" />
+                 ) : compStatus === "matched" ? (
+                   <div className="flex flex-col items-center w-full">
+                     <span className="text-xxs font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/10">
+                       {similarity}%
+                     </span>
+                     <div className="h-[2px] w-full bg-emerald-500/30 dark:bg-emerald-500/20 mt-2 shadow-[0_0_8px_#10b981]" />
+                   </div>
+                 ) : compStatus === "mismatched" ? (
+                   <div className="flex flex-col items-center w-full">
+                     <span className="text-xxs font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/10">
+                       {similarity}%
+                     </span>
+                     <div className="h-[2px] w-full bg-amber-500/30 dark:bg-amber-500/20 mt-2 shadow-[0_0_8px_#f59e0b]" />
+                   </div>
+                 ) : compStatus === "empty" ? (
+                   <div className="flex flex-col items-center w-full">
+                     <span className="text-xxs font-bold text-zinc-450">None</span>
+                     <div className="h-[2px] w-full bg-zinc-200 dark:bg-zinc-800 mt-2" />
+                   </div>
                  ) : (
-                   <UserCircle className="w-20 h-20 text-zinc-500" />
+                   <div className="h-[2px] w-full bg-zinc-200 dark:bg-zinc-800" />
                  )}
                </div>
-               <div className="mt-6 w-full min-w-0">
-                 <p className="text-lg font-bold text-foreground truncate">Live Picture</p>
-                 <p className="text-sm text-zinc-500 truncate">
-                   {username ? `@${username}` : "Not linked"}
-                 </p>
+
+               {/* Right: Live Platform Avatar */}
+               <div className="flex flex-col items-center gap-1.5 shrink-0">
+                 <div className={`w-16 h-16 rounded-full overflow-hidden border-2 relative bg-secondary transition-colors duration-300 ${
+                   compStatus === "matched" ? "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]" :
+                   compStatus === "mismatched" ? "border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]" :
+                   compStatus === "error" ? "border-rose-500" : "border-zinc-200 dark:border-zinc-800"
+                 }`}>
+                   {liveImageUrl ? (
+                     <img 
+                       src={liveImageUrl} 
+                       alt={`${platform.name} Avatar`} 
+                       className="w-full h-full object-cover" 
+                       onError={(e) => {
+                         (e.target as HTMLImageElement).src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+                       }} 
+                     />
+                   ) : (
+                     <UserCircle className="w-full h-full text-zinc-450 dark:text-zinc-650" />
+                   )}
+                   
+                   {/* Verification Laser Scanner effect */}
+                   {compStatus === "checking" && (
+                     <div className="absolute inset-0 bg-black/40 overflow-hidden flex flex-col justify-between">
+                       <motion.div 
+                         initial={{ y: "-100%" }}
+                         animate={{ y: "100%" }}
+                         transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                         className="absolute left-0 right-0 h-0.5 bg-accent-custom shadow-[0_0_8px_var(--accent-color)]"
+                       />
+                     </div>
+                   )}
+                 </div>
+                 <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 tracking-wider">Live</span>
                </div>
              </div>
 
-             <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium min-h-[40px]">
+             <p className="text-xxs text-zinc-550 dark:text-zinc-450 font-medium min-h-[28px] text-center leading-normal">
                {statusDescription}
              </p>
 
-             <div className="w-full mt-auto pt-2">
+             <div className="w-full pt-1">
                {mainButton}
              </div>
           </CardContent>
           
-          <CardFooter className="p-4 border-t border-zinc-100 dark:border-zinc-900 mt-auto bg-secondary/30">
-            <div className="flex w-full gap-2">
-               <a href={editUrl} target="_blank" rel="noreferrer" className="flex-1">
-                 <Button variant="ghost" size="sm" className="w-full text-xs font-bold text-zinc-500 hover:text-foreground rounded-lg" disabled={!username}>
-                   <ExternalLink className="w-4 h-4 mr-2" />
-                   Update on {platform.name}
-                 </Button>
-               </a>
-            </div>
+          <CardFooter className="p-3.5 border-t border-zinc-100 dark:border-zinc-900 bg-secondary/20 flex justify-center">
+            <a href={editUrl} target="_blank" rel="noreferrer" className="w-full">
+              <Button variant="ghost" size="sm" className="w-full text-xxs font-bold text-zinc-505 hover:text-foreground rounded-lg" disabled={!username}>
+                <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                Edit Profile Photo
+              </Button>
+            </a>
           </CardFooter>
         </Card>
       </motion.div>
@@ -417,192 +552,248 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col font-sans text-foreground selection:bg-zinc-200 dark:selection:bg-zinc-800 transition-colors duration-300">
+    <div className="min-h-screen bg-background flex flex-col lg:flex-row font-sans text-foreground selection:bg-zinc-200 dark:selection:bg-zinc-800 transition-colors duration-300 relative overflow-hidden">
+      
+      {/* File Input (Shared across all trigger buttons) */}
+      <input 
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      
+      <Starfield />
 
-      {/* Main Content — full width */}
-      <main className="flex-1 overflow-y-auto bg-background relative flex flex-col">
-        <Starfield />
-        
-        {/* Decorative glow */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-accent-custom/5 rounded-full blur-[140px] pointer-events-none" />
+      {/* Decorative Blur Orbs */}
+      <div className="absolute top-[-200px] right-[-200px] w-[500px] h-[500px] bg-accent-custom/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="absolute bottom-[-200px] left-[-200px] w-[500px] h-[500px] bg-accent-custom/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
-        {/* Topbar */}
-        <header className="flex justify-between items-center px-6 md:px-10 py-4 border-b border-zinc-200 dark:border-zinc-900 bg-card/50 backdrop-blur-md sticky top-0 z-30 transition-colors duration-300">
-          {/* Left: Logo + tab pills */}
-          <div className="flex items-center gap-3 sm:gap-6">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-10 h-10 flex items-center justify-center">
-                <NextImage src="/logo.png" alt="ProfileSync" width={40} height={40} className="object-contain drop-shadow-md" />
-              </div>
-              <span className="text-xl font-bold tracking-tight text-foreground hidden sm:block">ProfileSync</span>
+      {/* ─── DESKTOP SIDEBAR NAVIGATION ─── */}
+      <aside className="w-72 border-r border-zinc-200 dark:border-zinc-900 bg-card/50 dark:bg-card/30 backdrop-blur-xl h-screen sticky top-0 hidden lg:flex flex-col justify-between p-6 z-20 transition-colors duration-300">
+        <div className="space-y-8">
+          {/* Logo Brand Header */}
+          <div className="flex items-center space-x-3 px-2">
+            <div className="w-10 h-10 flex items-center justify-center relative">
+              <NextImage src="/logo.png" alt="ProfileSync Logo" width={38} height={38} className="object-contain drop-shadow-md" />
             </div>
-
-            {/* Tab Pills */}
-            <div className="flex items-center gap-1 bg-secondary rounded-xl p-1 border border-zinc-200 dark:border-zinc-800 shrink-0">
-              <button
-                onClick={() => setActiveTab("overview")}
-                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  activeTab === "overview"
-                    ? "bg-card text-foreground shadow-sm border border-zinc-200 dark:border-zinc-800"
-                    : "text-zinc-500 hover:text-foreground border border-transparent"
-                }`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab("settings")}
-                className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  activeTab === "settings"
-                    ? "bg-card text-foreground shadow-sm border border-zinc-200 dark:border-zinc-800"
-                    : "text-zinc-500 hover:text-foreground border border-transparent"
-                }`}
-              >
-                Settings
-              </button>
-            </div>
-          </div>
-
-          {/* Right: Profile dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center space-x-2.5 p-1.5 pr-3 rounded-full border border-zinc-200 dark:border-zinc-800 bg-card hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors focus:outline-none"
-            >
-              <div className="w-8 h-8 rounded-full border border-zinc-300 dark:border-zinc-700 bg-secondary flex items-center justify-center overflow-hidden shrink-0">
-                {masterAvatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={masterAvatar} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <UserCircle className="w-5 h-5 text-zinc-500" />
-                )}
-              </div>
-              <span className="text-sm font-semibold hidden sm:inline-block max-w-[140px] truncate text-foreground">
-                {email?.split("@")[0]}
+            <div>
+              <span className="text-lg font-black tracking-tight text-foreground bg-gradient-to-r from-foreground to-zinc-500 bg-clip-text">
+                ProfileSync
               </span>
-            </button>
-
-            <AnimatePresence>
-              {isDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="absolute right-0 mt-2 w-56 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-card p-4 shadow-xl z-50 text-foreground"
-                  >
-                    <div className="px-2 py-1.5 border-b border-zinc-100 dark:border-zinc-900 mb-2">
-                      <p className="text-xxs text-zinc-400 font-bold uppercase tracking-wider">Account</p>
-                      <p className="text-sm font-bold truncate text-foreground">{email}</p>
-                    </div>
-                    <button
-                      onClick={() => { setActiveTab("settings"); setIsDropdownOpen(false); }}
-                      className="w-full text-left px-2 py-2.5 rounded-xl text-sm font-semibold text-zinc-500 hover:text-foreground hover:bg-secondary/50 transition-colors flex items-center"
-                    >
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </button>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-2 py-2.5 rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-500/10 transition-colors flex items-center mt-1"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign Out
-                    </button>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-        </header>
-
-        {/* Dashboard Panels */}
-        <div className="flex-1 p-6 md:p-10 space-y-10 relative z-10 max-w-screen-2xl mx-auto w-full">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-200 dark:border-zinc-900 pb-8">
-            <div className="space-y-1">
-              <motion.h1
-                key={activeTab}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="text-3xl sm:text-4xl font-black tracking-tighter text-foreground"
-              >
-                {activeTab === "overview" ? "Dashboard" : "Settings"}
-              </motion.h1>
-              <p className="text-zinc-500 dark:text-zinc-400 font-medium text-sm sm:text-base">
-                {activeTab === "overview"
-                  ? "Manage and sync your professional identity."
-                  : "Configure your account and preferences."}
-              </p>
+              <p className="text-[10px] font-bold text-accent-custom uppercase tracking-wider">Identity Sync</p>
             </div>
-            <AnimatePresence mode="popLayout">
-              {activeTab === "overview" && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex flex-col items-end space-y-2 bg-card p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl min-w-[220px] w-full sm:w-auto"
-                >
-                  <div className="flex justify-between w-full">
-                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Sync Progress</span>
-                    <span className="text-sm font-black text-foreground">{Math.round(progress)}%</span>
-                  </div>
-                  <Progress value={progress} className="h-2.5 w-full bg-secondary [&>div]:bg-accent-custom" />
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
+          {/* Nav Links */}
+          <nav className="space-y-1.5">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
+                activeTab === "overview"
+                  ? "bg-accent-custom/10 text-accent-custom shadow-[inset_0_0_12px_var(--accent-glow)] border border-accent-custom/20"
+                  : "text-zinc-500 hover:text-foreground hover:bg-secondary/50 border border-transparent"
+              }`}
+            >
+              <LayoutDashboard className="w-4.5 h-4.5" />
+              <span>Overview</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
+                activeTab === "settings"
+                  ? "bg-accent-custom/10 text-accent-custom shadow-[inset_0_0_12px_var(--accent-glow)] border border-accent-custom/20"
+                  : "text-zinc-500 hover:text-foreground hover:bg-secondary/50 border border-transparent"
+              }`}
+            >
+              <Settings className="w-4.5 h-4.5" />
+              <span>Settings</span>
+            </button>
+          </nav>
+        </div>
+
+        {/* User Card & Logout */}
+        <div className="space-y-4 border-t border-zinc-200 dark:border-zinc-900 pt-6">
+          <div className="flex items-center space-x-3 px-2">
+            <div className="w-10 h-10 rounded-full border border-zinc-300 dark:border-zinc-700 bg-secondary flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+              {masterAvatar ? (
+                <img src={masterAvatar} alt="User Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <UserCircle className="w-6 h-6 text-zinc-500" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-foreground truncate">{email?.split("@")[0]}</p>
+              <p className="text-[10px] text-zinc-500 truncate">{email}</p>
+            </div>
+          </div>
+          <Button 
+            onClick={handleLogout} 
+            variant="ghost" 
+            className="w-full font-bold text-xs text-rose-500 hover:bg-rose-500/10 rounded-2xl py-5"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </aside>
+
+      {/* ─── MOBILE CONTAINER HEADER ─── */}
+      <header className="lg:hidden flex justify-between items-center px-5 py-3.5 border-b border-zinc-200 dark:border-zinc-900 bg-card/60 backdrop-blur-md sticky top-0 z-30 transition-colors duration-300">
+        <div className="flex items-center space-x-2">
+          <NextImage src="/logo.png" alt="Logo" width={28} height={28} className="object-contain" />
+          <span className="text-base font-black text-foreground">ProfileSync</span>
+        </div>
+
+        {/* Mobile quick actions */}
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 rounded-xl bg-secondary border border-zinc-250 dark:border-zinc-800 text-zinc-500 hover:text-foreground"
+            title="Upload Photo"
+          >
+            <UploadCloud className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-xl bg-secondary border border-zinc-250 dark:border-zinc-800 text-zinc-500 hover:text-foreground"
+          >
+            {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {/* Mobile Dropdown Drawer */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="fixed inset-0 top-[57px] bg-black/60 backdrop-blur-xs z-40"
+              />
+              <motion.div
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -20, opacity: 0 }}
+                className="absolute left-0 right-0 top-[57px] bg-card p-5 border-b border-zinc-200 dark:border-zinc-800 z-50 shadow-2xl flex flex-col space-y-4 text-foreground"
+              >
+                <div className="flex items-center space-x-3 pb-3 border-b border-zinc-100 dark:border-zinc-900">
+                  <div className="w-10 h-10 rounded-full border border-zinc-300 dark:border-zinc-700 bg-secondary flex items-center justify-center overflow-hidden shrink-0">
+                    {masterAvatar ? (
+                      <img src={masterAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <UserCircle className="w-5 h-5 text-zinc-500" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">{email?.split("@")[0]}</p>
+                    <p className="text-xxs text-zinc-550">{email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setActiveTab("overview"); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-bold ${activeTab === "overview" ? "bg-secondary text-foreground" : "text-zinc-505"}`}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>Overview</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab("settings"); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-bold ${activeTab === "settings" ? "bg-secondary text-foreground" : "text-zinc-505"}`}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Settings</span>
+                </button>
+                <Button 
+                  onClick={handleLogout} 
+                  variant="ghost" 
+                  className="w-full font-bold text-xs text-rose-500 justify-start rounded-xl py-5 hover:bg-rose-500/10"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </header>
+
+      {/* ─── MAIN CONTENT VIEWPORT ─── */}
+      <main className="flex-1 overflow-y-auto bg-background relative z-10 flex flex-col pb-20 lg:pb-0 h-screen">
+        
+        {/* Header Summary Row */}
+        <div className="px-6 md:px-10 pt-8 pb-4 border-b border-zinc-200 dark:border-zinc-900 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
+              {activeTab === "overview" ? "Overview" : "Settings"}
+            </h1>
+            <p className="text-xs md:text-sm text-zinc-500 dark:text-zinc-400 font-medium">
+              {activeTab === "overview"
+                ? "Validate profile identity visuals across coding networks."
+                : "Manage credentials, links, and appearance preferences."}
+            </p>
+          </div>
+          
+          {activeTab === "overview" && (
+            <div className="flex items-center gap-3 bg-card/60 border border-zinc-200 dark:border-zinc-800 p-3 rounded-2xl shadow-sm min-w-[200px] w-full sm:w-auto">
+              <div className="flex-1">
+                <div className="flex justify-between items-center mb-1 text-xxs font-bold text-zinc-500 uppercase tracking-wider">
+                  <span>Match Rate</span>
+                  <span className="text-foreground font-black">{Math.round(progress)}%</span>
+                </div>
+                <Progress value={progress} className="h-2 bg-secondary [&>div]:bg-accent-custom" />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tab Pages Container */}
+        <div className="flex-1 p-6 md:p-10 overflow-y-auto">
           <AnimatePresence mode="wait">
             {activeTab === "overview" ? (
               <motion.div
                 key="overview"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start"
               >
-                {/* Fixed Master Profile Card - visible on xl screens */}
-                <div className="hidden xl:block fixed top-[13rem] left-10 w-[280px] z-20">
-                  <Card className="border-2 border-accent-custom shadow-accent-custom bg-card rounded-[2.5rem] overflow-hidden transition-all duration-500">
-                    <CardHeader className="pb-6 pt-8 px-8">
-                      <CardTitle className="text-2xl font-bold text-foreground">Master Profile</CardTitle>
-                      <CardDescription className="text-zinc-500">Your single source of identity truth.</CardDescription>
+                {/* 1. Bento Master Avatar controller (Occupies 1 column) */}
+                <div className="xl:col-span-1">
+                  <Card className="border-2 border-accent-custom shadow-accent-custom bg-card/65 dark:bg-card/45 backdrop-blur-md rounded-3xl overflow-hidden">
+                    <CardHeader className="pb-4 pt-6 px-5 text-center border-b border-zinc-200 dark:border-zinc-900 bg-secondary/10">
+                      <CardTitle className="text-lg font-black text-foreground">Master Identity</CardTitle>
+                      <CardDescription className="text-xxs text-zinc-550">Single source of avatar truth</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex flex-col items-center px-8 pb-8 text-center">
+                    
+                    <CardContent className="flex flex-col items-center px-5 pt-6 pb-6 text-center">
                       <div 
                         onClick={() => fileInputRef.current?.click()}
-                        className="relative group w-44 h-44 rounded-full border border-zinc-200 dark:border-zinc-700 bg-secondary flex items-center justify-center overflow-hidden shadow-2xl transition-all hover:border-accent-custom cursor-pointer"
+                        className="relative group w-40 h-40 rounded-full border-2 border-zinc-200 dark:border-zinc-800 hover:border-accent-custom bg-secondary flex items-center justify-center overflow-hidden shadow-lg cursor-pointer transition-all duration-300"
                       >
                         {masterAvatar ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={masterAvatar} alt="Master Avatar" className="w-full h-full object-cover animate-fade-in" />
+                          <img src={masterAvatar} alt="Master avatar" className="w-full h-full object-cover" />
                         ) : (
-                          <UserCircle className="w-20 h-20 text-zinc-500 transition-transform group-hover:scale-110 duration-500" />
+                          <UserCircle className="w-16 h-16 text-zinc-450 dark:text-zinc-650 group-hover:scale-105 transition-transform duration-300" />
                         )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                          <ImageIcon className="w-6 h-6 text-white" />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-xs">
+                          <ImageIcon className="w-5 h-5 text-white" />
                         </div>
                       </div>
 
-                      <input 
-                        type="file"
-                        ref={fileInputRef}
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-
-                      <div className="mt-6 w-full">
-                        <p className="font-bold text-lg truncate text-foreground">{email?.split("@")[0]}</p>
-                        <p className="text-xs text-zinc-500 truncate">{email}</p>
+                      <div className="mt-4 w-full">
+                        <p className="font-bold text-sm truncate text-foreground">{email?.split("@")[0]}</p>
+                        <p className="text-xxs text-zinc-500 truncate">{email}</p>
                       </div>
 
                       <Button 
                         onClick={() => fileInputRef.current?.click()}
-                        className="mt-6 w-full bg-accent-custom text-white hover:opacity-90 font-bold rounded-full py-6 shadow-accent-custom transition-all"
+                        className="mt-5 w-full bg-accent-custom text-white hover:opacity-90 font-bold rounded-xl py-5 shadow-accent-custom transition-all text-xs"
                       >
-                        <ImageIcon className="mr-2 w-5 h-5" />
+                        <UploadCloud className="mr-1.5 w-4 h-4" />
                         {masterAvatar ? "Change Photo" : "Upload Photo"}
                       </Button>
 
@@ -610,108 +801,35 @@ export default function DashboardPage() {
                         <Button 
                           onClick={handleRemoveAvatar}
                           variant="ghost" 
-                          className="mt-3 w-full text-zinc-500 hover:text-red-400 font-medium rounded-full py-2 hover:bg-red-500/10"
+                          className="mt-2 w-full text-zinc-500 hover:text-red-400 font-bold rounded-xl py-3 text-xxs hover:bg-red-500/10"
                         >
+                          <Trash2 className="mr-1 w-3.5 h-3.5" />
                           Remove Photo
                         </Button>
                       )}
 
-                      {/* Active Connection Stats */}
-                      <div className="w-full border-t border-zinc-150 dark:border-zinc-900 mt-6 pt-6 grid grid-cols-2 gap-4">
-                        <div className="text-center">
-                          <p className="text-2xl font-black text-foreground">{activePlatforms.length}</p>
-                          <p className="text-xxs font-bold text-zinc-500 uppercase tracking-widest mt-1">Linked</p>
+                      {/* Connection Stats banner */}
+                      <div className="w-full border-t border-zinc-200 dark:border-zinc-900 mt-5 pt-4 grid grid-cols-2 gap-2 text-center bg-secondary/10 rounded-2xl p-2">
+                        <div>
+                          <p className="text-lg font-black text-foreground">{activePlatforms.length}</p>
+                          <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Linked</p>
                         </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-black text-foreground">{matchedCount}</p>
-                          <p className="text-xxs font-bold text-zinc-500 uppercase tracking-widest mt-1">Synced</p>
+                        <div>
+                          <p className="text-lg font-black text-foreground">{matchedCount}</p>
+                          <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">Synced</p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
 
-                {/* Mobile Master Profile Card - scrollable on smaller screens */}
-                <div className="xl:hidden mb-8">
-                  <Card className="border-2 border-accent-custom shadow-accent-custom bg-card rounded-[2.5rem] overflow-hidden transition-all duration-500">
-                    <CardHeader className="pb-6 pt-8 px-8">
-                      <CardTitle className="text-2xl font-bold text-foreground">Master Profile</CardTitle>
-                      <CardDescription className="text-zinc-500">Your single source of identity truth.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col items-center px-8 pb-8 text-center">
-                      <div 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="relative group w-44 h-44 rounded-full border border-zinc-200 dark:border-zinc-700 bg-secondary flex items-center justify-center overflow-hidden shadow-2xl transition-all hover:border-accent-custom cursor-pointer"
-                      >
-                        {masterAvatar ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={masterAvatar} alt="Master Avatar" className="w-full h-full object-cover animate-fade-in" />
-                        ) : (
-                          <UserCircle className="w-20 h-20 text-zinc-500 transition-transform group-hover:scale-110 duration-500" />
-                        )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                          <ImageIcon className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-
-                      <input 
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-
-                      <div className="mt-6 w-full">
-                        <p className="font-bold text-lg truncate text-foreground">{email?.split("@")[0]}</p>
-                        <p className="text-xs text-zinc-500 truncate">{email}</p>
-                      </div>
-
-                      <Button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="mt-6 w-full bg-accent-custom text-white hover:opacity-90 font-bold rounded-full py-6 shadow-accent-custom transition-all"
-                      >
-                        <ImageIcon className="mr-2 w-5 h-5" />
-                        {masterAvatar ? "Change Photo" : "Upload Photo"}
-                      </Button>
-
-                      {masterAvatar && (
-                        <Button 
-                          onClick={handleRemoveAvatar}
-                          variant="ghost" 
-                          className="mt-3 w-full text-zinc-500 hover:text-red-400 font-medium rounded-full py-2 hover:bg-red-500/10"
-                        >
-                          Remove Photo
-                        </Button>
-                      )}
-
-                      {/* Active Connection Stats */}
-                      <div className="w-full border-t border-zinc-150 dark:border-zinc-900 mt-6 pt-6 grid grid-cols-2 gap-4">
-                        <div className="text-center">
-                          <p className="text-2xl font-black text-foreground">{activePlatforms.length}</p>
-                          <p className="text-xxs font-bold text-zinc-500 uppercase tracking-widest mt-1">Linked</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-black text-foreground">{matchedCount}</p>
-                          <p className="text-xxs font-bold text-zinc-500 uppercase tracking-widest mt-1">Synced</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Right Side: Platform Cards - offset on xl to make room for fixed card */}
-                <motion.div 
-                  initial={{ y: 20, filter: "blur(8px)" }}
-                  animate={{ y: 0, filter: "blur(0px)" }}
-                  transition={{ type: "spring", bounce: 0, duration: 0.5, delay: 0.1 }}
-                  className="xl:ml-[310px] space-y-10"
-                >
-                  
-                  {/* Social Networks Group */}
-                  <div className="space-y-6">
-                    <h2 className="text-lg font-bold flex items-center text-foreground uppercase tracking-widest ml-1 text-zinc-400 dark:text-zinc-500">
-                      <span className="w-2.5 h-2.5 rounded-full bg-accent-custom mr-3 shadow-accent-custom shrink-0" />
-                      Social Networks
+                {/* 2. Bento Platforms Grid (Occupies remaining 3 columns) */}
+                <div className="xl:col-span-3 space-y-6">
+                  {/* Social Platforms Row */}
+                  <div className="space-y-4">
+                    <h2 className="text-xs font-bold flex items-center text-foreground uppercase tracking-widest ml-1 text-zinc-400 dark:text-zinc-500">
+                      <span className="w-2 h-2 rounded-full bg-accent-custom mr-2.5 shadow-accent-custom" />
+                      Social Platforms
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                       {PLATFORMS.filter(p => p.id === "linkedin" || p.id === "github").map((platform, idx) => 
@@ -720,11 +838,11 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Coding Platforms Group */}
-                  <div className="space-y-6">
-                    <h2 className="text-lg font-bold flex items-center text-foreground uppercase tracking-widest ml-1 text-zinc-400 dark:text-zinc-500">
-                      <span className="w-2.5 h-2.5 rounded-full bg-accent-custom mr-3 shadow-accent-custom shrink-0" />
-                      Coding Platforms
+                  {/* Coding Networks Row */}
+                  <div className="space-y-4 pt-4">
+                    <h2 className="text-xs font-bold flex items-center text-foreground uppercase tracking-widest ml-1 text-zinc-400 dark:text-zinc-500">
+                      <span className="w-2 h-2 rounded-full bg-accent-custom mr-2.5 shadow-accent-custom" />
+                      Coding Networks
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                       {PLATFORMS.filter(p => p.id !== "linkedin" && p.id !== "github").map((platform, idx) => 
@@ -732,79 +850,83 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
-
-                </motion.div>
+                </div>
               </motion.div>
             ) : (
               <motion.div
                 key="settings"
-                initial={{ opacity: 0, y: 20, filter: "blur(8px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -20, filter: "blur(8px)" }}
-                transition={{ type: "spring", bounce: 0, duration: 0.5 }}
-                className="max-w-3xl space-y-8"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="max-w-4xl space-y-8"
               >
-                {/* Account Settings */}
-                <Card className="border-zinc-200 dark:border-zinc-800 bg-card rounded-[2rem] overflow-hidden">
-                  <CardHeader className="px-8 pt-8">
-                    <CardTitle className="flex items-center text-2xl font-bold text-foreground">
-                      <UserCircle className="w-6 h-6 mr-3 text-zinc-400" />
-                      Account Details
+                {/* 1. Account Details */}
+                <Card className="border border-zinc-200 dark:border-zinc-900 bg-card/65 dark:bg-card/45 backdrop-blur-md rounded-3xl overflow-hidden">
+                  <CardHeader className="px-6 pt-6">
+                    <CardTitle className="flex items-center text-lg font-bold text-foreground">
+                      <UserCircle className="w-5 h-5 mr-2.5 text-zinc-450" />
+                      User Details
                     </CardTitle>
-                    <CardDescription className="text-zinc-500 mt-2">Manage your basic account information.</CardDescription>
+                    <CardDescription className="text-xxs text-zinc-500 mt-1">Manage user account properties.</CardDescription>
                   </CardHeader>
-                  <CardContent className="px-8 pb-8 space-y-6 mt-4">
-                    <div className="space-y-3">
-                      <label className="text-sm font-bold text-zinc-450 dark:text-zinc-400 uppercase tracking-wider">Email Address</label>
-                      <input type="email" disabled value={email || ""} className="flex h-12 w-full max-w-md rounded-xl border border-zinc-200 dark:border-zinc-800 bg-secondary px-4 py-2 text-sm text-zinc-500 cursor-not-allowed focus:outline-none" />
-                      <p className="text-xs text-zinc-550 dark:text-zinc-600 font-medium">Your email address is managed by your authentication provider.</p>
+                  <CardContent className="px-6 pb-6 pt-2">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-zinc-450 uppercase tracking-wider">Email Address</label>
+                      <input 
+                        type="email" 
+                        disabled 
+                        value={email || ""} 
+                        className="flex h-11 w-full max-w-md rounded-xl border border-zinc-200 dark:border-zinc-800 bg-secondary/50 px-4 text-xs text-zinc-500 cursor-not-allowed focus:outline-none" 
+                      />
+                      <p className="text-[10px] text-zinc-500 font-medium">Email login credentials are authenticated through Firebase.</p>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Appearance Settings */}
-                <Card className="border-zinc-200 dark:border-zinc-800 bg-card rounded-[2rem] overflow-hidden">
-                  <CardHeader className="px-8 pt-8">
-                    <CardTitle className="flex items-center text-2xl font-bold text-foreground">
-                      <Sparkles className="w-6 h-6 mr-3 text-zinc-400" />
-                      Appearance Settings
+                {/* 2. Appearance Preference */}
+                <Card className="border border-zinc-200 dark:border-zinc-900 bg-card/65 dark:bg-card/45 backdrop-blur-md rounded-3xl overflow-hidden">
+                  <CardHeader className="px-6 pt-6">
+                    <CardTitle className="flex items-center text-lg font-bold text-foreground">
+                      <Sparkles className="w-5 h-5 mr-2.5 text-zinc-450" />
+                      Design Customizer
                     </CardTitle>
-                    <CardDescription className="text-zinc-500 mt-2">Personalize the look and feel of your dashboard.</CardDescription>
+                    <CardDescription className="text-xxs text-zinc-500 mt-1">Personalize colors and display layouts.</CardDescription>
                   </CardHeader>
-                  <CardContent className="px-8 pb-8 space-y-6 mt-4">
-                    {/* Theme selector */}
-                    <div className="space-y-3">
-                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Theme Mode</label>
-                      <div className="flex gap-4">
+                  <CardContent className="px-6 pb-6 pt-2 space-y-6">
+                    {/* Theme Mode toggle button */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-zinc-450 uppercase tracking-wider">Theme Mode</label>
+                      <div className="flex gap-3">
                         <button
                           onClick={() => setThemeMode("light")}
-                          className={`flex items-center space-x-2 px-6 py-3 rounded-xl border text-sm font-bold transition-all ${
+                          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl border text-xs font-bold transition-all ${
                             themeMode === "light" 
                               ? "border-accent-custom bg-accent-custom/10 text-accent-custom shadow-accent-custom" 
-                              : "border-zinc-200 dark:border-zinc-800 bg-card text-zinc-500 hover:text-foreground"
+                              : "border-zinc-200 dark:border-zinc-850 bg-card/30 text-zinc-505 hover:text-foreground"
                           }`}
                         >
-                          <Sun className="w-4 h-4 mr-2" />
+                          <Sun className="w-4 h-4 mr-1" />
                           Light Mode
                         </button>
                         <button
                           onClick={() => setThemeMode("dark")}
-                          className={`flex items-center space-x-2 px-6 py-3 rounded-xl border text-sm font-bold transition-all ${
+                          className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl border text-xs font-bold transition-all ${
                             themeMode === "dark" 
                               ? "border-accent-custom bg-accent-custom/10 text-accent-custom shadow-accent-custom" 
-                              : "border-zinc-200 dark:border-zinc-800 bg-card text-zinc-500 hover:text-foreground"
+                              : "border-zinc-200 dark:border-zinc-855 bg-card/30 text-zinc-505 hover:text-foreground"
                           }`}
                         >
-                          <Moon className="w-4 h-4 mr-2" />
+                          <Moon className="w-4 h-4 mr-1" />
                           Dark Mode
                         </button>
                       </div>
                     </div>
 
-                    {/* Accent Colors */}
-                    <div className="space-y-3 pt-2">
-                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Accent Color</label>
-                      <div className="flex flex-wrap gap-3">
+                    {/* Accent Colors circles */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-zinc-450 uppercase tracking-wider">Accent Swatch</label>
+                      <div className="flex flex-wrap gap-2.5">
                         {(["blue", "violet", "emerald", "rose", "amber"] as const).map(color => {
                           const colorLabels = {
                             blue: { label: "Blue", hex: "bg-blue-500" },
@@ -818,13 +940,13 @@ export default function DashboardPage() {
                             <button
                               key={color}
                               onClick={() => setAccentColor(color)}
-                              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
+                              className={`flex items-center space-x-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
                                 isActive 
                                   ? "border-accent-custom bg-accent-custom/10 text-accent-custom shadow-accent-custom" 
-                                  : "border-zinc-200 dark:border-zinc-800 bg-card text-zinc-500 hover:text-foreground"
+                                  : "border-zinc-200 dark:border-zinc-855 bg-card/30 text-zinc-505 hover:text-foreground"
                               }`}
                             >
-                              <span className={`w-3 h-3 rounded-full ${colorLabels[color].hex}`} />
+                              <span className={`w-2.5 h-2.5 rounded-full ${colorLabels[color].hex}`} />
                               <span>{colorLabels[color].label}</span>
                             </button>
                           );
@@ -834,69 +956,78 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
 
-                {/* Social Profiles Settings */}
-                <Card className="border-zinc-200 dark:border-zinc-800 bg-card rounded-[2rem] overflow-hidden">
-                  <CardHeader className="px-8 pt-8 border-b border-zinc-200 dark:border-zinc-900 pb-6">
-                    <CardTitle className="flex items-center text-2xl font-bold text-foreground">
-                      <Settings className="w-6 h-6 mr-3 text-zinc-400" />
-                      Social Profiles
+                {/* 3. Link Social Profiles */}
+                <Card className="border border-zinc-200 dark:border-zinc-900 bg-card/65 dark:bg-card/45 backdrop-blur-md rounded-3xl overflow-hidden">
+                  <CardHeader className="px-6 pt-6 border-b border-zinc-200 dark:border-zinc-900 pb-4">
+                    <CardTitle className="flex items-center text-lg font-bold text-foreground">
+                      <Settings className="w-5 h-5 mr-2.5 text-zinc-455" />
+                      Linked Usernames
                     </CardTitle>
-                    <CardDescription className="text-zinc-500 mt-2">Link your accounts to fetch live profile pictures.</CardDescription>
+                    <CardDescription className="text-xxs text-zinc-500 mt-1">Configure profile handles or full profile URLs.</CardDescription>
                   </CardHeader>
-                  <CardContent className="px-8 py-8 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  <CardContent className="px-6 py-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       {PLATFORMS.map(platform => (
-                        <div key={`setting-${platform.id}`} className="space-y-2">
-                          <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                            <platform.icon className="w-4 h-4" />
-                            {platform.name}
+                        <div key={`setting-${platform.id}`} className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <platform.icon className="w-3.5 h-3.5" />
+                            {platform.name} Username
                           </label>
                           <input 
                             type="text" 
-                            placeholder="username or profile link" 
+                            placeholder="e.g. handle or profile url" 
                             value={localUsernames[platform.id] || ""}
                             onChange={(e) => handleUsernameChange(platform.id, e.target.value)}
-                            className="w-full bg-secondary border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-zinc-400 transition-colors placeholder:text-zinc-450 dark:placeholder:text-zinc-700"
+                            className="w-full bg-secondary/30 border border-zinc-200 dark:border-zinc-800/85 rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-zinc-450 transition-colors placeholder:text-zinc-400"
                           />
                         </div>
                       ))}
                     </div>
                   </CardContent>
-                  <CardFooter className="px-8 py-6 bg-secondary/20 border-t border-zinc-200 dark:border-zinc-900 flex justify-end">
-                    <Button onClick={handleSaveUsernames} className="bg-accent-custom text-white hover:opacity-95 font-bold rounded-xl px-8 py-6 shadow-accent-custom">
-                      <Save className="w-5 h-5 mr-2" />
-                      Save Changes
+                  
+                  <CardFooter className="px-6 py-4 bg-secondary/10 border-t border-zinc-200 dark:border-zinc-900 flex justify-end">
+                    <Button onClick={handleSaveUsernames} className="bg-accent-custom text-white hover:opacity-95 font-bold rounded-xl px-6 py-4 shadow-accent-custom text-xs">
+                      <Save className="w-4 h-4 mr-1.5" />
+                      Save Configurations
                     </Button>
                   </CardFooter>
-                </Card>
-
-                {/* Account Actions: Sign Out */}
-                <Card className="border-zinc-200 dark:border-zinc-900 bg-card rounded-[2rem] overflow-hidden relative">
-                  <CardHeader className="px-8 pt-8">
-                    <CardTitle className="text-foreground flex items-center text-2xl font-bold">
-                      <LogOut className="w-6 h-6 mr-3 text-zinc-500" />
-                      Account Actions
-                    </CardTitle>
-                    <CardDescription className="text-zinc-500 mt-2">Manage your session settings.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="px-8 pb-8 mt-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 rounded-2xl border border-zinc-200 dark:border-zinc-850 bg-secondary/30 gap-4">
-                      <div>
-                        <p className="font-bold text-foreground text-lg">Sign Out</p>
-                        <p className="text-sm text-zinc-500 mt-1 font-medium">End your current session.</p>
-                      </div>
-                      <Button onClick={handleLogout} className="rounded-xl font-bold px-6 py-6 w-full sm:w-auto transition-colors bg-secondary hover:bg-zinc-200 dark:hover:bg-zinc-800 text-foreground border border-zinc-200 dark:border-zinc-800">
-                        <LogOut className="w-5 h-5 mr-2" />
-                        Sign Out
-                      </Button>
-                    </div>
-                  </CardContent>
                 </Card>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </main>
+
+      {/* ─── MOBILE BOTTOM NAVIGATION TAB BAR ─── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-zinc-200 dark:border-zinc-900 bg-card/85 backdrop-blur-lg z-30 flex items-center justify-around px-4 transition-colors duration-300">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`flex flex-col items-center justify-center w-20 h-full space-y-1 text-center font-bold text-[10px] transition-colors ${
+            activeTab === "overview" ? "text-accent-custom" : "text-zinc-505"
+          }`}
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span>Overview</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`flex flex-col items-center justify-center w-20 h-full space-y-1 text-center font-bold text-[10px] transition-colors ${
+            activeTab === "settings" ? "text-accent-custom" : "text-zinc-505"
+          }`}
+        >
+          <Settings className="w-5 h-5" />
+          <span>Settings</span>
+        </button>
+        <button
+          onClick={handleLogout}
+          className="flex flex-col items-center justify-center w-20 h-full space-y-1 text-center font-bold text-[10px] text-rose-500"
+        >
+          <LogOut className="w-5 h-5" />
+          <span>Logout</span>
+        </button>
+      </nav>
+      
     </div>
   );
 }

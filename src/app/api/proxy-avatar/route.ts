@@ -251,8 +251,8 @@ export async function GET(req: NextRequest) {
     // GitHub provides direct access. Bypassing unavatar prevents heavy edge caching.
     imageUrl = `https://github.com/${cleanUsername}.png`;
   } else if (platform === "linkedin") {
-    // For linkedin we use unavatar. We cannot force cache bypass due to strict 25/day rate limit.
-    imageUrl = `https://unavatar.io/linkedin/${cleanUsername}`;
+    // For linkedin we use unavatar. We append cache-buster on refresh to bypass unavatar cache.
+    imageUrl = `https://unavatar.io/linkedin/${cleanUsername}${refresh ? `?t=${Date.now()}` : ""}`;
   } else if (platform === "leetcode") {
     imageUrl = await fetchLeetCodeAvatar(cleanUsername, refresh);
   } else if (platform === "codeforces") {

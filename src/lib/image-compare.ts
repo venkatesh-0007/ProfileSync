@@ -1,7 +1,10 @@
 /**
- * Compares two images by resizing them to a small grid (16x16) on an offscreen canvas
- * and calculating the average difference in their RGB pixel channels.
- * Returns a promise resolving to `true` if they are visually similar (below threshold), else `false`.
+ * Compares two images by resizing them to a 64x64 grid on an offscreen canvas,
+ * applying a circular mask to isolate the face, and computing a combined similarity score:
+ * 1. Normalized RGB color difference.
+ * 2. Structural gradient differences (Difference Hash style).
+ * 
+ * Returns a promise resolving to `{ isSimilar: boolean; difference: number }`.
  */
 export function compareImages(
   imgUrl1: string,
@@ -9,8 +12,7 @@ export function compareImages(
   thresholdPercent = 15
 ): Promise<{ isSimilar: boolean; difference: number }> {
   return new Promise((resolve, reject) => {
-    // 32x32 grid for Average Hash (aHash)
-    const size = 32;
+    const size = 64;
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
@@ -25,89 +27,103 @@ export function compareImages(
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => resolveImg(img);
-        img.onerror = () => rejectImg(new Error(`Failed to load image from ${url}`));
+        img.onerror = () => rejectImg(new Error(`Failed to load image`));
         img.src = url;
       });
     };
 
     Promise.all([loadImg(imgUrl1), loadImg(imgUrl2)])
       .then(([img1, img2]) => {
-        // Function to extract grayscale and compute average for masked pixels
-        const getHashData = (img: HTMLImageElement) => {
-          ctx.clearRect(0, 0, size, size);
+        const getPixelData = (img: HTMLImageElement) => {
+          ctx.fillStyle = "#ffffff"; // Solid background for transparent PNGs
+          ctx.fillRect(0, 0, size, size);
           ctx.drawImage(img, 0, 0, size, size);
-          const data = ctx.getImageData(0, 0, size, size).data;
-          
-          let totalGray = 0;
-          let validPixels = 0;
-          const grays = new Float32Array(size * size);
-          const validMap = new Uint8Array(size * size);
+          return ctx.getImageData(0, 0, size, size).data;
+        };
 
-          for (let i = 0; i < data.length; i += 4) {
-            const pixelIndex = i / 4;
-            const x = pixelIndex % size;
-            const y = Math.floor(pixelIndex / size);
+        const data1 = getPixelData(img1);
+        const data2 = getPixelData(img2);
 
-            const dx = x - (size - 1) / 2;
-            const dy = y - (size - 1) / 2;
+        let totalColorDiff = 0;
+        let totalGradientDiff = 0;
+        let validPixels = 0;
+
+        // Circular mask: focus on center 82% to ignore borders and corners
+        const radiusLimit = (size / 2) * 0.82;
+        const center = (size - 1) / 2;
+
+        const grays1 = new Float32Array(size * size);
+        const grays2 = new Float32Array(size * size);
+        const validMap = new Uint8Array(size * size);
+
+        // First pass: extract grays and calculate color differences
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+            const pixelIndex = y * size + x;
+            const idx = pixelIndex * 4;
+
+            const dx = x - center;
+            const dy = y - center;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            // Skip corners to handle circular platform avatars
-            if (dist > (size / 2) * 0.95) {
+            // Skip pixels outside circular mask
+            if (dist > radiusLimit) {
               continue;
             }
 
-            // Skip fully transparent pixels
-            if (data[i + 3] === 0) continue;
-
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            
-            // Standard luminosity formula
-            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-            grays[pixelIndex] = gray;
             validMap[pixelIndex] = 1;
-            
-            totalGray += gray;
             validPixels++;
-          }
 
-          const avgGray = validPixels > 0 ? totalGray / validPixels : 0;
-          
-          // Generate bitmask (1 if >= avg, 0 if < avg)
-          const bits = new Uint8Array(size * size);
-          for (let i = 0; i < grays.length; i++) {
-            if (validMap[i]) {
-              bits[i] = grays[i] >= avgGray ? 1 : 0;
-            }
-          }
+            const r1 = data1[idx], g1 = data1[idx + 1], b1 = data1[idx + 2];
+            const r2 = data2[idx], g2 = data2[idx + 1], b2 = data2[idx + 2];
 
-          return { bits, validMap, validPixels };
-        };
+            // Normalize grayscale
+            grays1[pixelIndex] = 0.299 * r1 + 0.587 * g1 + 0.114 * b1;
+            grays2[pixelIndex] = 0.299 * r2 + 0.587 * g2 + 0.114 * b2;
 
-        const hash1 = getHashData(img1);
-        const hash2 = getHashData(img2);
+            // Euclidean color distance in RGB space (normalized to 0..1 range)
+            const colorDist = Math.sqrt(
+              Math.pow(r1 - r2, 2) +
+              Math.pow(g1 - g2, 2) +
+              Math.pow(b1 - b2, 2)
+            ) / Math.sqrt(3 * 255 * 255);
 
-        let hammingDistance = 0;
-        let comparedBits = 0;
-
-        for (let i = 0; i < size * size; i++) {
-          // Only compare pixels that are valid in BOTH images
-          if (hash1.validMap[i] && hash2.validMap[i]) {
-            if (hash1.bits[i] !== hash2.bits[i]) {
-              hammingDistance++;
-            }
-            comparedBits++;
+            totalColorDiff += colorDist;
           }
         }
 
-        const percentDiff = comparedBits > 0 ? (hammingDistance / comparedBits) * 100 : 0;
+        // Second pass: structural gradient differences (compares each pixel to its neighbors)
+        let gradientPairs = 0;
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size - 1; x++) {
+            const p1 = y * size + x;
+            const p2 = y * size + (x + 1);
 
-        // Use the threshold passed from page.tsx (25%), but aHash differences > 15% are usually distinct images.
+            if (validMap[p1] && validMap[p2]) {
+              // Horizontal gradient direction comparison (Difference hashing principal)
+              const grad1 = grays1[p1] > grays1[p2];
+              const grad2 = grays2[p1] > grays2[p2];
+              if (grad1 !== grad2) {
+                totalGradientDiff += 1.0;
+              }
+              gradientPairs++;
+            }
+          }
+        }
+
+        // Combine scores: 65% color similarity + 35% structure similarity
+        const colorDiffPercent = validPixels > 0 ? (totalColorDiff / validPixels) * 100 : 100;
+        const gradDiffPercent = gradientPairs > 0 ? (totalGradientDiff / gradientPairs) * 100 : 100;
+
+        const combinedDiff = colorDiffPercent * 0.65 + gradDiffPercent * 0.35;
+
+        // Clean up canvas
+        canvas.width = 0;
+        canvas.height = 0;
+
         resolve({
-          isSimilar: percentDiff <= thresholdPercent,
-          difference: percentDiff,
+          isSimilar: combinedDiff <= thresholdPercent,
+          difference: combinedDiff,
         });
       })
       .catch((error) => {
