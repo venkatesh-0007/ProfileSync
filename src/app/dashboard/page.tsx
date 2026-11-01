@@ -995,15 +995,24 @@ export default function DashboardPage() {
                         <div key={`setting-${platform.id}`} className="space-y-1.5">
                           <label className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
                             <platform.icon className="w-3.5 h-3.5" />
-                            {platform.name} Username
+                            {platform.name} {platform.id === "linkedin" ? "Profile Slug / URL" : "Username"}
                           </label>
                           <input 
                             type="text" 
-                            placeholder="e.g. handle or profile url" 
+                            placeholder={
+                              platform.id === "linkedin" 
+                                ? "e.g. your-vanity-handle or linkedin.com/in/handle" 
+                                : "e.g. handle or profile url"
+                            }
                             value={localUsernames[platform.id] || ""}
                             onChange={(e) => handleUsernameChange(platform.id, e.target.value)}
                             className="w-full bg-secondary/30 border border-zinc-200 dark:border-zinc-800/85 rounded-xl px-4 py-2.5 text-xs text-foreground focus:outline-none focus:border-zinc-450 transition-colors placeholder:text-zinc-400"
                           />
+                          {platform.id === "linkedin" && (
+                            <p className="text-[10px] text-zinc-500 font-medium">
+                              From your profile URL: linkedin.com/in/<span className="text-accent-custom font-bold">your-slug</span> (not your display name)
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>

@@ -194,6 +194,39 @@ async function fetchCodeChefAvatar(username: string, refresh = false): Promise<s
   }
 }
 
+async function fetchLinkedInAvatar(username: string, refresh = false): Promise<string | null> {
+  try {
+    const fetchOptions: RequestInit = {
+      headers: {
+        "User-Agent": USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    };
+    if (refresh) fetchOptions.cache = "no-store";
+    else fetchOptions.next = { revalidate: 300 };
+
+    const res = await fetch(`https://www.linkedin.com/in/${username}/`, fetchOptions);
+    if (res.ok) {
+      const html = await res.text();
+      const ogMatch = html.match(/<meta[^>]*property=[\x27\"]og:image[\x27\"][^>]*content=[\x27\"]([^\x27\"]+)[\x27\"]/i) ||
+                      html.match(/<meta[^>]*content=[\x27\"]([^\x27\"]+)[\x27\"][^>]*property=[\x27\"]og:image[\x27\"]/i);
+      if (ogMatch && ogMatch[1]) {
+        const decoded = ogMatch[1].replace(/&amp;/g, "&");
+        // Ensure it is a valid licdn image and not a static ghost placeholder
+        if (decoded.includes("licdn.com") && !decoded.includes("ghost-person")) {
+          return decoded;
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Direct LinkedIn profile scrape error:", e);
+  }
+
+  // Fallback strictly to unavatar.io for the linkedin provider only
+  return `https://unavatar.io/linkedin/${username}${refresh ? `?t=${Date.now()}` : ""}`;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const platform = searchParams.get("platform");
@@ -212,6 +245,11 @@ export async function GET(req: NextRequest) {
   // Strip leading '@' if present
   if (cleanUsername.startsWith("@")) {
     cleanUsername = cleanUsername.substring(1);
+  }
+
+  // If platform is LinkedIn, remove leading 'in/' or '/in/'
+  if (platform === "linkedin") {
+    cleanUsername = cleanUsername.replace(/^\/?in\//i, "");
   }
 
   // If cleanUsername is a URL or contains slash/domain indicators, parse it
@@ -256,10 +294,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // LinkedIn name-to-handle parsing (convert "First Last" to "first-last")
-  if (platform === "linkedin" && cleanUsername.includes(" ")) {
-    cleanUsername = cleanUsername.toLowerCase().replace(/\s+/g, "-");
-  }
+  // Clean trailing punctuation or URL parameters if any remain
+  cleanUsername = cleanUsername.split("?")[0].replace(/\/+$/, "");
 
   const cacheKey = `${platform}:${cleanUsername}:${email || ""}`;
   const cached = IMAGE_CACHE.get(cacheKey);
@@ -302,8 +338,7 @@ export async function GET(req: NextRequest) {
     // GitHub provides direct access with size parameter for crisp resolution
     imageUrl = `https://github.com/${cleanUsername}.png?size=400`;
   } else if (platform === "linkedin") {
-    // For linkedin we use unavatar. We append cache-buster on refresh to bypass unavatar cache.
-    imageUrl = `https://unavatar.io/linkedin/${cleanUsername}${refresh ? `?t=${Date.now()}` : ""}`;
+    imageUrl = await fetchLinkedInAvatar(cleanUsername, refresh);
   } else if (platform === "leetcode") {
     imageUrl = await fetchLeetCodeAvatar(cleanUsername, refresh);
   } else if (platform === "codeforces") {
@@ -312,10 +347,8 @@ export async function GET(req: NextRequest) {
     imageUrl = await fetchCodeChefAvatar(cleanUsername, refresh);
   }
 
-  const isCodingPlatform = platform === "leetcode" || platform === "codeforces" || platform === "codechef";
-
-  // If a coding platform has no image URL, it is an empty or non-existent profile
-  if (!imageUrl && (isCodingPlatform || platform === "github")) {
+  // If platform has no image URL, it is an empty or non-existent profile
+  if (!imageUrl) {
     IMAGE_CACHE.set(cacheKey, {
       buffer: null,
       contentType: "image/svg+xml",
@@ -344,12 +377,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // If general lookup yields nothing and not a specialized platform, try general unavatar fallback
-  if (!imageUrl) {
-    imageUrl = `https://unavatar.io/${cleanUsername}`;
-  }
-
-  let finalUrl = imageUrl;
+  const finalUrl = imageUrl;
   let isEmpty = isDefaultAvatar(finalUrl);
   let isFallback = false;
   let buffer: Buffer | null = null;
@@ -360,8 +388,7 @@ export async function GET(req: NextRequest) {
       ? { headers: { "User-Agent": USER_AGENT }, cache: "no-store" }
       : { headers: { "User-Agent": USER_AGENT }, next: { revalidate: 300 } };
 
-    let res = await fetch(finalUrl, fetchOptions);
-
+    const res = await fetch(finalUrl, fetchOptions);
     let isValidFetch = res.ok;
 
     if (isValidFetch) {
@@ -371,43 +398,6 @@ export async function GET(req: NextRequest) {
       if (isFallbackBuffer(buffer, contentType)) {
         isValidFetch = false;
         buffer = null;
-      }
-    }
-
-    // Only fallback to general unavatar if not a dedicated coding network or github
-    if (!isCodingPlatform && platform !== "github") {
-      const unavatarFallbackUrl = `https://unavatar.io/${cleanUsername}`;
-      if (!isValidFetch && finalUrl !== unavatarFallbackUrl && !finalUrl.startsWith(`https://unavatar.io/${cleanUsername}`)) {
-        finalUrl = unavatarFallbackUrl;
-        isEmpty = isDefaultAvatar(finalUrl);
-        res = await fetch(finalUrl, fetchOptions);
-        isValidFetch = res.ok;
-        if (isValidFetch) {
-          const arrayBuffer = await res.arrayBuffer();
-          buffer = Buffer.from(arrayBuffer);
-          contentType = res.headers.get("content-type") || "image/png";
-          if (isFallbackBuffer(buffer, contentType)) {
-            isValidFetch = false;
-            buffer = null;
-          }
-        }
-      }
-
-      // If still failing, try email Gravatar fallback if email provided
-      if (!isValidFetch && email) {
-        finalUrl = `https://unavatar.io/${email}`;
-        isEmpty = isDefaultAvatar(finalUrl);
-        res = await fetch(finalUrl, fetchOptions);
-        isValidFetch = res.ok;
-        if (isValidFetch) {
-          const arrayBuffer = await res.arrayBuffer();
-          buffer = Buffer.from(arrayBuffer);
-          contentType = res.headers.get("content-type") || "image/png";
-          if (isFallbackBuffer(buffer, contentType)) {
-            isValidFetch = false;
-            buffer = null;
-          }
-        }
       }
     }
 
