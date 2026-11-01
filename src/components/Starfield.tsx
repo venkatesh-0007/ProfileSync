@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore, useMemo } from "react";
 
 // Generate a box-shadow string of random stars
 const generateStars = (count: number) => {
@@ -12,20 +12,20 @@ const generateStars = (count: number) => {
   return boxShadow;
 };
 
+const emptySubscribe = () => () => {};
+
 export default function Starfield() {
-  const [mounted, setMounted] = useState(false);
-  const [starsSmall, setStarsSmall] = useState("");
-  const [starsMedium, setStarsMedium] = useState("");
-  const [starsLarge, setStarsLarge] = useState("");
+  const isClient = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
-  useEffect(() => {
-    setStarsSmall(generateStars(300));
-    setStarsMedium(generateStars(100));
-    setStarsLarge(generateStars(25));
-    setMounted(true);
-  }, []);
+  const starsSmall = useMemo(() => (isClient ? generateStars(300) : ""), [isClient]);
+  const starsMedium = useMemo(() => (isClient ? generateStars(100) : ""), [isClient]);
+  const starsLarge = useMemo(() => (isClient ? generateStars(25) : ""), [isClient]);
 
-  if (!mounted) return null;
+  if (!isClient) return null;
 
   return (
     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none opacity-40 dark:opacity-20 mix-blend-screen">

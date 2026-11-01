@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
@@ -13,7 +12,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
@@ -73,21 +71,25 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 /** Fetch a user's profile document from Firestore */
 async function fetchUserData(uid: string): Promise<UserAccountData | null> {
-  const snap = await getDoc(doc(db, "users", uid));
-  if (snap.exists()) {
-    return snap.data() as UserAccountData;
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    if (snap.exists()) {
+      return snap.data() as UserAccountData;
+    }
+  } catch (err) {
+    console.error("Failed to fetch user data from Firestore:", err);
   }
   return null;
 }
 
 /** Write initial profile document when a new user signs up */
 async function createUserDocument(uid: string, data: UserAccountData): Promise<void> {
-  await setDoc(doc(db, "users", uid), data);
+  await setDoc(doc(db, "users", uid), data, { merge: true });
 }
 
 /** Partially update a user's profile document in Firestore */
 async function patchUserDocument(uid: string, data: Partial<UserAccountData>): Promise<void> {
-  await updateDoc(doc(db, "users", uid), data as Record<string, unknown>);
+  await setDoc(doc(db, "users", uid), data as Record<string, unknown>, { merge: true });
 }
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
@@ -101,32 +103,32 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   // ─── Session listener ────────────────────────────────────────────────────────
-  // onAuthStateChanged fires automatically:
-  //   • on page load (restores session from Firebase's own persistence)
-  //   • after sign-in / sign-up
-  //   • after sign-out
-  // This replaces ALL the localStorage session-restore logic.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userData = await fetchUserData(user.uid);
-        setFirebaseUser(user);
-        setIsAuthenticated(true);
-        setEmail(user.email);
-        setUsernames({ ...defaultUsernames, ...userData?.usernames });
-        setMasterAvatarState(userData?.masterAvatar ?? null);
-        setAccentColorState(userData?.accentColor ?? "blue");
-        setThemeModeState(userData?.themeMode ?? "dark");
-      } else {
-        setFirebaseUser(null);
-        setIsAuthenticated(false);
-        setEmail(null);
-        setUsernames(defaultUsernames);
-        setMasterAvatarState(null);
-        setAccentColorState("blue");
-        setThemeModeState("dark");
+      try {
+        if (user) {
+          const userData = await fetchUserData(user.uid);
+          setFirebaseUser(user);
+          setIsAuthenticated(true);
+          setEmail(user.email);
+          setUsernames({ ...defaultUsernames, ...userData?.usernames });
+          setMasterAvatarState(userData?.masterAvatar ?? null);
+          setAccentColorState(userData?.accentColor ?? "blue");
+          setThemeModeState(userData?.themeMode ?? "dark");
+        } else {
+          setFirebaseUser(null);
+          setIsAuthenticated(false);
+          setEmail(null);
+          setUsernames(defaultUsernames);
+          setMasterAvatarState(null);
+          setAccentColorState("blue");
+          setThemeModeState("dark");
+        }
+      } catch (err) {
+        console.error("Error in onAuthStateChanged handler:", err);
+      } finally {
+        setIsLoaded(true);
       }
-      setIsLoaded(true);
     });
 
     return () => unsubscribe();

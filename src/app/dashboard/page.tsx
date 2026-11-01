@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps, @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -10,7 +10,7 @@ import {
   Image as ImageIcon, ExternalLink,
   UserCircle, Moon, Sun, LogOut, Save,
   RefreshCw, Sparkles, LayoutDashboard,
-  ShieldCheck, AlertCircle, UploadCloud, Trash2,
+  UploadCloud, Trash2, Download,
   Menu, X
 } from "lucide-react";
 import { GithubIcon as Github, LinkedinIcon as Linkedin } from "@/components/icons";
@@ -71,39 +71,29 @@ const PLATFORMS = [
   },
 ];
 
-const compressImage = (file: File, maxWidth = 256, maxHeight = 256): Promise<string> => {
+const compressImage = (file: File, targetSize = 256): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = targetSize;
+        canvas.height = targetSize;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
           resolve(e.target?.result as string);
           return;
         }
 
+        // Center-crop to 1:1 square aspect ratio so portrait/landscape photos are not squashed
+        const minDim = Math.min(img.width, img.height);
+        const sx = (img.width - minDim) / 2;
+        const sy = (img.height - minDim) / 2;
+
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.fillRect(0, 0, targetSize, targetSize);
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize);
         resolve(canvas.toDataURL("image/jpeg", 0.85));
       };
       img.onerror = () => reject(new Error("Failed to load image for resizing"));
@@ -188,10 +178,10 @@ export default function DashboardPage() {
         return;
       }
 
-      // 2. Perform comparison
-      const liveProxyUrl = `/api/proxy-avatar?platform=${platformId}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email || "")}&refresh=true`;
-      // Allow up to 15% difference (85% similarity threshold) for robust matching
-      const res = await compareImages(masterAvatar, liveProxyUrl, 15);
+      // 2. Perform comparison - cached buffer is leveraged directly without re-fetching
+      const liveProxyUrl = `/api/proxy-avatar?platform=${platformId}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email || "")}`;
+      // Allow up to 25% difference (75% similarity threshold as documented in README) for robust cross-platform matching
+      const res = await compareImages(masterAvatar, liveProxyUrl, 25);
       
       setComparisonResults(prev => ({
         ...prev,
@@ -273,6 +263,16 @@ export default function DashboardPage() {
     updateMasterAvatar(null);
   };
 
+  const handleDownloadMaster = () => {
+    if (!masterAvatar) return;
+    const link = document.createElement("a");
+    link.href = masterAvatar;
+    link.download = "master-avatar.jpg";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleUsernameChange = (id: string, value: string) => {
     setLocalUsernames(prev => ({ ...prev, [id]: value }));
   };
@@ -290,7 +290,7 @@ export default function DashboardPage() {
     const username = usernames[platform.id] || "";
     const currentRefreshKey = refreshKeys[platform.id] || 0;
     const liveImageUrl = username 
-      ? `/api/proxy-avatar?platform=${platform.id}&username=${username}&email=${email || ""}${currentRefreshKey ? `&_t=${currentRefreshKey}` : ''}` 
+      ? `/api/proxy-avatar?platform=${platform.id}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email || "")}${currentRefreshKey ? `&_t=${currentRefreshKey}` : ''}` 
       : null;
     const statusObj = comparisonResults[platform.id];
     const compStatus = statusObj?.status || "idle";
@@ -538,13 +538,25 @@ export default function DashboardPage() {
              </div>
           </CardContent>
           
-          <CardFooter className="p-3.5 border-t border-zinc-100 dark:border-zinc-900 bg-secondary/20 flex justify-center">
-            <a href={editUrl} target="_blank" rel="noreferrer" className="w-full">
+          <CardFooter className="p-3.5 border-t border-zinc-100 dark:border-zinc-900 bg-secondary/20 flex items-center justify-between gap-2">
+            <a href={editUrl} target="_blank" rel="noreferrer" className="flex-1">
               <Button variant="ghost" size="sm" className="w-full text-xxs font-bold text-zinc-505 hover:text-foreground rounded-lg" disabled={!username}>
                 <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
                 Edit Profile Photo
               </Button>
             </a>
+            {masterAvatar && username && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadMaster}
+                className="h-8 px-2.5 text-xxs font-bold border-zinc-200 dark:border-zinc-800 rounded-lg hover:bg-secondary shrink-0 text-zinc-500 hover:text-foreground"
+                title="Download Master Avatar to upload here"
+              >
+                <Download className="w-3 h-3 mr-1" />
+                Get Master
+              </Button>
+            )}
           </CardFooter>
         </Card>
       </motion.div>
@@ -799,9 +811,20 @@ export default function DashboardPage() {
 
                       {masterAvatar && (
                         <Button 
+                          onClick={handleDownloadMaster}
+                          variant="outline" 
+                          className="mt-2.5 w-full font-bold rounded-xl py-5 border border-zinc-200 dark:border-zinc-800 text-foreground hover:bg-secondary/70 flex items-center justify-center gap-2 text-xs transition-all"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download Master Photo
+                        </Button>
+                      )}
+
+                      {masterAvatar && (
+                        <Button 
                           onClick={handleRemoveAvatar}
                           variant="ghost" 
-                          className="mt-2 w-full text-zinc-500 hover:text-red-400 font-bold rounded-xl py-3 text-xxs hover:bg-red-500/10"
+                          className="mt-1 w-full text-zinc-500 hover:text-red-400 font-bold rounded-xl py-3 text-xxs hover:bg-red-500/10"
                         >
                           <Trash2 className="mr-1 w-3.5 h-3.5" />
                           Remove Photo
